@@ -188,9 +188,9 @@
                         int categoryDbId = 0;
                         if (categoryIdStr != null) {
                             if (categoryIdStr.equals("japan")) categoryDbId = 1;
-                            else if (categoryIdStr.equals("belgium")) categoryDbId = 2;
-                            else if (categoryIdStr.equals("france")) categoryDbId = 3;
-                            else if (categoryIdStr.equals("germany")) categoryDbId = 4;
+                            else if (categoryIdStr.equals("france")) categoryDbId = 2;
+                            else if (categoryIdStr.equals("germany")) categoryDbId = 3;
+                            else if (categoryIdStr.equals("belgium")) categoryDbId = 4;
                             else if (categoryIdStr.equals("italy")) categoryDbId = 5;
                             else if (categoryIdStr.equals("usa")) categoryDbId = 6;
                             else if (categoryIdStr.equals("uk")) categoryDbId = 7;
