@@ -292,7 +292,7 @@
                 <h2 style="margin-bottom:20px;">購物車</h2>
                 
                 <div id="cartItems">
-                </div>
+                    </div>
 
                 <div class="card" style="margin-top:20px; text-align:right; font-weight:bold; font-size:1.2rem;">
                     總金額 <span id="cartTotal" style="color:#FF7F50;">$0</span>
@@ -375,7 +375,9 @@
             </div>
 
             <div class="form-section">
-                <div class="section-header"><span class="section-title">訂單明細</span></div>
+                <div class="section-header">
+                    <span class="section-title">訂單明細</span>
+                </div>
                 <div id="checkoutItemsList"></div>
                 <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 5px; display:flex; justify-content:space-between;">
                     <span>運費</span><span id="shippingFeeDisplay">$60</span>
@@ -393,14 +395,10 @@
 
     <footer>
         <div class="footer-socials">
-            <a href="https://reurl.cc/xKA8ae" target="_blank">
-                <i class="fa-brands fa-instagram"></i></a>
-            <a href="https://reurl.cc/Vmlo9A" target="_blank">
-                <i class="fa-brands fa-threads"></i></a>
-            <a href="https://reurl.cc/9ba94j" target="_blank">
-                <i class="fa-brands fa-line"></i></a>
-            <a href="mailto:service@example.com">
-                <i class="fa-solid fa-envelope"></i></a>
+            <a href="https://reurl.cc/xKA8ae" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+            <a href="https://reurl.cc/Vmlo9A" target="_blank"><i class="fa-brands fa-threads"></i></a>
+            <a href="https://reurl.cc/9ba94j" target="_blank"><i class="fa-brands fa-line"></i></a>
+            <a href="mailto:service@example.com"><i class="fa-solid fa-envelope"></i></a>
         </div>
         <div class="footer-links"><a href="help.jsp">幫助中心</a> | <a href="question.jsp">常見問題</a></div>
         <p class="copyright">© COPYRIGHT 807dorm</p>

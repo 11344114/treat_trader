@@ -1,4 +1,4 @@
-<%
+﻿<%
     // ==========================================
     // 【 步驟一 】強制設定請求端編碼並接收參數
     // ==========================================
@@ -236,13 +236,7 @@
                             <div class="product-card" onclick="location.href='goods.jsp?id=<%= pid %>'">
                                 <img class="img-placeholder" src="assets/images/<%= img %>" alt="<%= name %>">
                                 <h3><%= name %></h3>
-                                <div class="rating-stars">
-                                    <i class="fa-solid fa-star active"></i>
-                                    <i class="fa-solid fa-star active"></i>
-                                    <i class="fa-solid fa-star active"></i>
-                                    <i class="fa-solid fa-star active"></i>
-                                    <i class="fa-solid fa-star"></i>
-                                </div>
+                                <div class="rating-stars"><span style="color:#aaa; font-size: 0.8rem;">(載入中...)</span></div>
                                 <p style="color: #e74c3c; font-weight: bold; font-size: 1.1em;">$ <%= price %></p>
                             </div>
             <%
@@ -304,6 +298,6 @@
         <p class="copyright">© COPYRIGHT 807dorm</p>
     </footer>
 
-    <script src="assets/js/allgoods.js"></script>
+    <script src="assets/js/allgoods.js?v=2"></script>
 </body>
 </html>

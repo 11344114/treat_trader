@@ -1,9 +1,9 @@
-const API_BASE = "http://localhost:5038/api";
+﻿const API_BASE = "http://localhost:5038/api";
 
-/*window.onload = function () {
+window.onload = function () {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
     if (user) document.getElementById('avatarLink').href = "member.html";
-};*/
+};
 
 function handleRegister(e) {
     e.preventDefault();
@@ -82,7 +82,9 @@ function closeForgetModal() { document.getElementById('forgetModal').style.displ
 function confirmForget() {
     var email = document.getElementById('forgetEmail').value;
     var phone = document.getElementById('forgetPhone').value;
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !phone) { alert("請填寫所有欄位！"); return; }
+    if (!emailPattern.test(email)) { alert("請輸入有效的 Email 格式！"); return; }
     alert("這是 demo 網站，請聯絡客服重設密碼 : )");
     closeForgetModal();
 }

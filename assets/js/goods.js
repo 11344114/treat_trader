@@ -123,19 +123,27 @@ function addToCart(goCheckout) {
     }
     if (!currentProduct) return;
 
-    var cart = getCart();
-    var item = cart.find(function (i) { return i.id == pid; });
-    if (item) item.qty++;
-    else cart.push({ id: pid, qty: 1, name: currentProduct.name, price: currentProduct.price });
+    fetch('goods.jsp?action=decreaseInventory&id=' + pid)
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            var cart = getCart();
+            var item = cart.find(function (i) { return i.id == pid; });
+            if (item) item.qty++;
+            else cart.push({ id: pid, qty: 1, name: currentProduct.name, price: currentProduct.price, img: currentProduct.img });
 
-    saveCart(cart);
-    if (goCheckout) {
-        // 增加數量後前往購物車頁面
-        location.href = 'cart.jsp';
-    } else {
-        // 顯示通知並留在當前頁面
-        alert("已加入購物車！");
-    }
+            saveCart(cart);
+            if (goCheckout) {
+                location.href = 'cart.jsp';
+            } else {
+                alert("已加入購物車！");
+                location.reload();
+            }
+        } else {
+            alert("無法加入購物車：" + (data.message || "庫存不足"));
+        }
+    })
+    .catch(e => alert("系統錯誤，請稍後再試"));
 }
 
 function setRating(val) {

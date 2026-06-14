@@ -1,11 +1,12 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
 <%
-    // 如果已經有登入（session 裡有 memberEmail），直接導向會員頁面
+        // 如果已經有登入（session 裡有 memberEmail），直接導向會員頁面
     if (session.getAttribute("memberEmail") != null) {
         response.sendRedirect("member.jsp");
         return;
     }
+
 
     String message = ""; 
 
@@ -210,6 +211,6 @@
         <p class="copyright">© COPYRIGHT 807dorm</p>
     </footer>
 
-    <script src="assets/js/login.js"></script>
+    <script src="assets/js/login.js?v=2"></script>
 </body>
 </html>

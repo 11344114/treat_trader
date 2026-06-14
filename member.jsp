@@ -1,4 +1,5 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*" %>
 <%@ include file="db.jsp" %>
 <%
     // 1. 從後端 Session 抓取剛剛登入時存入的會員資料
@@ -28,7 +29,13 @@
         th, td { border: 1px solid #FFECB3; padding: 10px; text-align: left; }
         th { background: #FFECB3; }
         @media (max-width: 768px) { .member-layout { grid-template-columns: 1fr; } }
-        .review-card { background: #FFF7E8; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        
+        /* 評論紀錄卡片樣式優化 */
+        .review-record { background: #FFF7E8; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #FFD2A6; }
+        .review-prod-name { font-weight: bold; color: #5C4033; font-size: 1.05rem; margin-bottom: 5px; }
+        .review-stars { color: #e2b007; margin-bottom: 5px; font-size: 0.95rem; }
+        .review-text { color: #555; font-size: 0.95rem; line-height: 1.4; }
+        .review-meta { color: #999; font-size: 0.8rem; text-align: right; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -80,9 +87,10 @@
                                     String orderSql = "SELECT o.orderId, o.orderDate, o.total, o.status, o.payment " +
                                                       "FROM orders o JOIN users u ON o.orders_userId = u.userId " +
                                                       "WHERE u.email = ? ORDER BY o.orderDate DESC";
-                                    PreparedStatement pstmt = conn.prepareStatement(orderSql);
+                                    // 💡 修正點：補上 java.sql. 確保編譯完全綠燈
+                                    java.sql.PreparedStatement pstmt = conn.prepareStatement(orderSql);
                                     pstmt.setString(1, mEmail);
-                                    ResultSet rs = pstmt.executeQuery();
+                                    java.sql.ResultSet rs = pstmt.executeQuery();
                                     
                                     boolean hasOrder = false;
                                     while(rs.next()) {
@@ -99,7 +107,6 @@
                                         out.println("</tr>");
                                     }
                                     
-                                    // 如果迴圈跑完還是 false，代表他還沒買過東西
                                     if(!hasOrder) {
                                         out.println("<tr><td colspan='5' style='text-align:center;'>尚無訂單紀錄，快去逛逛吧！</td></tr>");
                                     }
@@ -115,8 +122,59 @@
 
                 <div class="card">
                     <h2 class="member-section-title">評論與評分紀錄</h2>
-                    <div id="myReviews"><p>尚無評論紀錄。</p></div>
+                    <div id="myReviews">
+                        <%
+                            if (conn != null) {
+                                try {
+                                    // 安全查詢：撈取目前會員寫過的所有評論，並 JOIN 商品表拿到零食名稱
+                                    String reviewSql = "SELECT r.rating, r.content, r.reviewedAt, p.productName " +
+                                                       "FROM reviews r JOIN products p ON r.review_productId = p.productId " +
+                                                       "JOIN users u ON r.review_userId = u.userId " +
+                                                       "WHERE u.email = ? ORDER BY r.reviewedAt DESC";
+                                    java.sql.PreparedStatement rpstmt = conn.prepareStatement(reviewSql);
+                                    rpstmt.setString(1, mEmail);
+                                    java.sql.ResultSet rrs = rpstmt.executeQuery();
+                                    
+                                    boolean hasReview = false;
+                                    while(rrs.next()) {
+                                        hasReview = true;
+                                        String pNameOfReview = rrs.getString("productName");
+                                        int score = rrs.getInt("rating");
+                                        String reviewContent = rrs.getString("content");
+                                        java.sql.Timestamp rTime = rrs.getTimestamp("reviewedAt");
+                                        String rDateStr = (rTime != null) ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(rTime) : "";
+                        %>
+                                        <div class="review-record">
+                                            <div class="review-prod-name">📦 商品：<%= pNameOfReview %></div>
+                                            <div class="review-stars">
+                                                <% 
+                                                    // 依據分數動態畫出實心星星
+                                                    for(int s=1; s<=5; s++) { 
+                                                        if(s <= score) { out.print("★"); } else { out.print("☆"); }
+                                                    } 
+                                                %>
+                                                (<%= score %> 分)
+                                            </div>
+                                            <div class="review-text">💬 <%= reviewContent == null || reviewContent.isEmpty() ? "（僅評分，未填寫評語）" : reviewContent %></div>
+                                            <div class="review-meta">發表日期：<%= rDateStr %></div>
+                                        </div>
+                        <%
+                                    }
+                                    
+                                    if(!hasReview) {
+                                        out.println("<p style='color:#888; text-align:center; padding: 20px 0;'>您目前還沒有發表過任何商品評論喔！</p>");
+                                    }
+                                    rrs.close();
+                                    rpstmt.close();
+                                    
+                                } catch(Exception e) {
+                                    out.println("<p style='color:red;'>無法加載評論紀錄：" + e.getMessage() + "</p>");
+                                }
+                            }
+                        %>
+                    </div>
                 </div>
+                
             </div>
         </div>
     </div>
@@ -137,7 +195,6 @@
     <script>
         function logout() {
             if(confirm("確定要登出嗎？")) {
-                // 導向專屬的登出處理頁面
                 window.location.href = "logout.jsp"; 
             }
         }

@@ -28,7 +28,7 @@ function loadRatingsForProducts(products) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var items = data.items || [];
-                var ratings = getDefaultReviewRatings().slice();
+                var ratings = [];
 
                 items.forEach(function (r) {
                     var rating = Number(r.rating);
@@ -46,7 +46,7 @@ function loadRatingsForProducts(products) {
                 productRatings[p.id] = parseFloat((sum / ratings.length).toFixed(1));
             })
             .catch(function () {
-                productRatings[p.id] = getDefaultAverageRating();
+                productRatings[p.id] = 0;
             });
     });
 
@@ -82,10 +82,14 @@ function fetchData() {
 }
 
 function calculateAvgRating(pid) {
-    return productRatings[pid] || 0;
+    if (productRatings[pid] === undefined) return -1;
+    return productRatings[pid];
 }
 
 function renderStars(rating) {
+    if (rating === -1) {
+        return '<span style="color:#aaa; font-size: 0.8rem;">(載入中...)</span>';
+    }
     var html = "";
     for (var i = 1; i <= 5; i++) {
         if (i <= Math.round(rating)) html += '<i class="fa-solid fa-star active"></i>';
