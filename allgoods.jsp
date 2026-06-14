@@ -184,13 +184,13 @@
                         // 1. 建立安全的預編譯基礎 SQL 語句
                         String sql = "SELECT productId, productName, price, img FROM products WHERE productName LIKE ?";
                         
-                        // 💡 由於你前端下拉選單傳的是字串 (例如 "belgium", "japan")，我們在這裡做個安全的轉換對接
+                        // 💡 依據你最新上傳的資料庫截圖，100% 精準對齊國家真實編號 ID
                         int categoryDbId = 0;
                         if (categoryIdStr != null) {
                             if (categoryIdStr.equals("japan")) categoryDbId = 1;
                             else if (categoryIdStr.equals("france")) categoryDbId = 2;
                             else if (categoryIdStr.equals("germany")) categoryDbId = 3;
-                            else if (categoryIdStr.equals("belgium")) categoryDbId = 4;
+                            else if (categoryIdStr.equals("belgium")) categoryDbId = 4; // 🎯 比利時精準對齊 4!
                             else if (categoryIdStr.equals("italy")) categoryDbId = 5;
                             else if (categoryIdStr.equals("usa")) categoryDbId = 6;
                             else if (categoryIdStr.equals("uk")) categoryDbId = 7;
