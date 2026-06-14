@@ -1,6 +1,6 @@
 const API_BASE = "http://localhost:5038/api";
 
-window.onload = function() {
+/*window.onload = function() {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
     if (!user) {
         alert("請先登入！");
@@ -14,7 +14,7 @@ window.onload = function() {
         loadMyReviews(user.id);
         loadOrderProgress(user.id);
     }
-};
+};*/
 
 function logout() {
     localStorage.removeItem('tt_currentUser');

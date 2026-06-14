@@ -249,8 +249,8 @@
                 
                 <div id="pRatingDisplay" style="color: #e2b007; font-size: 1.2rem; margin-bottom: 20px;">暫無評分</div>
                 <div style="display:flex; gap:15px; margin-top: 30px;">
-                    <button class="btn" style="flex:1; padding: 15px; font-size:1.1rem;" onclick="addToCart(false)">加入購物車</button>
-                    <button class="btn" style="flex:1; background:#5C4033; padding: 15px; font-size:1.1rem;" onclick="addToCart(true)">直接購買</button>
+                    <button id="addCartBtn" class="btn" style="flex:1; padding: 15px; font-size:1.1rem;" onclick="addToCart(false)">加入購物車</button>
+                    <button id="buyNowBtn" class="btn" style="flex:1; background:#5C4033; padding: 15px; font-size:1.1rem;" onclick="addToCart(true)">直接購買</button>
                 </div>
             </div>
         </div>
@@ -359,17 +359,7 @@
                 }
             }
         %>
-         var serverReviews = <%= reviewsJson %>;
-         // 從 session 注入登入狀態與使用者資料（若存在）
-         var isLoggedIn = <%= (session.getAttribute("memberEmail") != null) ? "true" : "false" %>;
-         var serverUser = null;
-         <% if (session.getAttribute("memberEmail") != null) {
-             Object mid = session.getAttribute("memberId");
-             String memEmail = (String) session.getAttribute("memberEmail");
-             String memName = (String) session.getAttribute("memberName");
-         %>
-         serverUser = { id: <%= (mid!=null? mid : -1) %>, email: '<%= memEmail.replace("'","\\'") %>', name: '<%= memName.replace("'","\\'") %>' };
-         <% } %>
+        var serverReviews = <%= reviewsJson %>;
     </script>
 
     <script src="assets/js/goods.js"></script>

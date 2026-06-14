@@ -9,14 +9,14 @@ var currentPage = 1;
 var reviewsPerPage = 2;
 
 window.onload = function () {
-    var isLogged = (typeof window.isLoggedIn !== 'undefined') ? window.isLoggedIn : false;
-    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
-    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
-    var user = serverUser || localUser || null;
-
+    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+    var addBtn = document.getElementById('addCartBtn');
+    var buyBtn = document.getElementById('buyNowBtn');
     if (user) {
         var avatar = document.getElementById('avatarLink');
         if (avatar) avatar.href = "member.jsp";
+        if (addBtn) { addBtn.disabled = false; addBtn.title = ''; addBtn.style.opacity = '1'; }
+        if (buyBtn) { buyBtn.disabled = false; buyBtn.title = ''; buyBtn.style.opacity = '1'; }
     } else {
         var reviewInput = document.getElementById('userReview');
         var submitBtn = document.getElementById('submitReviewBtn');
@@ -32,6 +32,17 @@ window.onload = function () {
         if (starCont) {
             starCont.style.pointerEvents = 'none';
             starCont.style.opacity = '0.5';
+        }
+        // 不把按鈕設定為 disabled（以便點擊能觸發提示），改為綁定點擊事件提示後導向 login.jsp
+        if (addBtn) {
+            addBtn.title = '請先登入';
+            addBtn.style.opacity = '0.8';
+            addBtn.onclick = function () { alert('請先登入會員後再進行購物！'); location.href = 'login.jsp'; };
+        }
+        if (buyBtn) {
+            buyBtn.title = '請先登入';
+            buyBtn.style.opacity = '0.8';
+            buyBtn.onclick = function () { alert('請先登入會員後再進行購物！'); location.href = 'login.jsp'; };
         }
     }
     setRating(5);
@@ -83,11 +94,8 @@ function loadRecs(all) {
 }
 
 function getCartKey() {
-    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
-    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
-    var u = serverUser || localUser;
-    if (u && (u.id || u.email)) return 'tt_cart_user_' + (u.id ? u.id : u.email);
-    return 'tt_cart';
+    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+    return user ? 'tt_cart_user_' + user.id : 'tt_cart';
 }
 
 function getCart() {
@@ -107,11 +115,8 @@ function saveCart(cart) {
 }
 
 function addToCart(goCheckout) {
-    var isLogged = (typeof window.isLoggedIn !== 'undefined') ? window.isLoggedIn : false;
-    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
-    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
-    var user = serverUser || localUser;
-    if (!isLogged && !user) {
+    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+    if (!user) {
         alert("請先登入會員後再進行購物！");
         location.href = "login.jsp";
         return;
@@ -124,8 +129,13 @@ function addToCart(goCheckout) {
     else cart.push({ id: pid, qty: 1, name: currentProduct.name, price: currentProduct.price });
 
     saveCart(cart);
-    if (goCheckout) location.href = 'cart.jsp';
-    else alert("已加入購物車！");
+    if (goCheckout) {
+        // 增加數量後前往購物車頁面
+        location.href = 'cart.jsp';
+    } else {
+        // 顯示通知並留在當前頁面
+        alert("已加入購物車！");
+    }
 }
 
 function setRating(val) {

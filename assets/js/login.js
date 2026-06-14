@@ -1,9 +1,9 @@
 const API_BASE = "http://localhost:5038/api";
 
-window.onload = function () {
+/*window.onload = function () {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
     if (user) document.getElementById('avatarLink').href = "member.html";
-};
+};*/
 
 function handleRegister(e) {
     e.preventDefault();

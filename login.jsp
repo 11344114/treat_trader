@@ -1,8 +1,14 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
 <%
+    // 如果已經有登入（session 裡有 memberEmail），直接導向會員頁面
+    if (session.getAttribute("memberEmail") != null) {
+        response.sendRedirect("member.jsp");
+        return;
+    }
+
     String message = ""; 
-    
+
     if ("POST".equalsIgnoreCase(request.getMethod())) {
         request.setCharacterEncoding("UTF-8");
         String action = request.getParameter("action"); 
@@ -99,6 +105,9 @@
             background: white; padding: 30px; border-radius: 10px;
             width: 90%; max-width: 400px; text-align: center;
         }
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr 1fr !important; }
+        }
         @media (max-width: 768px) {
             .container { grid-template-columns: 1fr !important; }
         }
@@ -126,7 +135,7 @@
         </div>
     </header>
 
-    <div class="container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+    <div class="container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px;">
         
         <div class="card login-container">
             <h2>會員登入</h2>
@@ -154,6 +163,25 @@
                 <input type="password" id="regPwd" name="regPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
                 
                 <button type="submit" class="btn" style="width:100%; background:#5C4033; font-size:1.1rem;">註冊</button>
+            </form>
+        </div>
+
+        <div class="card login-container" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border: 2px solid #667eea;">
+            <h2 style="color: #667eea;">🔐 管理者登入</h2>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Treat Trader 後台管理系統</p>
+            <form style="margin-top: 20px;" action="admin-login.jsp" method="POST">
+                <input type="hidden" name="action" value="adminLogin">
+                
+                <input type="email" id="adminEmail" name="adminEmail" placeholder="管理者信箱" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+                <input type="password" id="adminPwd" name="adminPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+                
+                <button type="submit" class="btn" style="width:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size:1.1rem;">進入後台</button>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #f0f4ff; border-radius: 5px; font-size: 0.85rem; color: #555;">
+                    <strong style="color: #667eea;">測試帳號：</strong><br>
+                    信箱：admin@treattrader.com<br>
+                    密碼：admin123
+                </div>
             </form>
         </div>
     </div>
