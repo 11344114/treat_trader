@@ -1,8 +1,11 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page import="java.util.*" %>
 <%@ include file="db.jsp" %>
 <%
-    // 1. 抓取網址列傳過來的商品編號 (例如：goods.jsp?id=1)
+    // 1. 抓取網址列傳過來的商品編號 (例如：goods.jsp?id=1)，並解析成整數
     String productId = request.getParameter("id");
+    int pidInt = -1;
+    try { if (productId != null) pidInt = Integer.parseInt(productId); } catch(Exception e) { pidInt = -1; }
     
     // 2. 預設商品資訊 (如果找不到商品時顯示)
     String pName = "找不到該商品";
@@ -12,26 +15,71 @@
     String pNut = "暫無營養標示";
 
     // 3. 如果資料庫有連線，且網址有傳遞 id 過來，就去撈資料
-    if (conn != null && productId != null) {
+    String prodListJson = "[]"; // 由伺服器產生的產品清單（供前端使用，取代 products.json）
+    if (conn != null && pidInt > 0) {
         try {
-            // 使用 PreparedStatement 避免 SQL 注入攻擊 (假設你的主鍵欄位叫做 id)
-            String sql = "SELECT * FROM products WHERE id = ?";
+            // 使用 PreparedStatement 避免 SQL 注入攻擊，主鍵欄位使用 productId
+            String sql = "SELECT * FROM products WHERE productId = ?";
             PreparedStatement pstmt = conn.prepareStatement(sql);
-            pstmt.setString(1, productId); // 把網址的 id 塞進問號裡
+            pstmt.setInt(1, pidInt); // 把網址的 id（已解析為整數）塞進問號裡
             ResultSet rs = pstmt.executeQuery();
             
             if (rs.next()) {
+                // 確認使用 DB 的 productId
+                pidInt = rs.getInt("productId");
+                // 取固定欄位
                 pName = rs.getString("productName");
                 pPrice = rs.getInt("price");
                 pImg = rs.getString("img");
-                
-                // 💡 注意：如果你的資料庫 products 表格「還沒有」description 和 nutrition 這兩個欄位，
-                // 請先把下面這兩行「刪除或加上 // 註解」，以免網頁報錯！等以後加上欄位再打開。
-                // pDesc = rs.getString("description");
-                // pNut = rs.getString("nutrition");
+
+                // 安全取可選欄位：檢查欄位是否存在再讀取
+                ResultSetMetaData md = rs.getMetaData();
+                Set<String> cols = new HashSet<String>();
+                for (int i = 1; i <= md.getColumnCount(); i++) {
+                    cols.add(md.getColumnLabel(i).toLowerCase());
+                }
+                if (cols.contains("description")) {
+                    String v = rs.getString("description");
+                    if (v != null && !v.isEmpty()) pDesc = v;
+                }
+                if (cols.contains("nutrition")) {
+                    String v = rs.getString("nutrition");
+                    if (v != null && !v.isEmpty()) pNut = v;
+                }
             }
             rs.close();
             pstmt.close();
+
+            // 撈其他商品（推薦商品）並把結果序列化成 JSON 字串，供前端使用
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            PreparedStatement pstmt2 = conn.prepareStatement("SELECT productId, productName, price, img FROM products WHERE productId <> ? LIMIT 8");
+            pstmt2.setInt(1, pidInt);
+            ResultSet rs2 = pstmt2.executeQuery();
+            boolean first = true;
+            while (rs2.next()) {
+                if (!first) sb.append(',');
+                first = false;
+                int id = rs2.getInt("productId");
+                String nm = rs2.getString("productName");
+                int pr = rs2.getInt("price");
+                String im = rs2.getString("img");
+                if (nm == null) nm = "";
+                if (im == null) im = "";
+                nm = nm.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                im = im.replace("\\", "\\\\").replace("\"", "\\\"");
+                sb.append('{')
+                  .append("\"id\":").append(id).append(',')
+                  .append("\"name\":\"").append(nm).append("\",")
+                  .append("\"price\":").append(pr).append(',')
+                  .append("\"img\":\"").append(im).append("\"")
+                  .append('}');
+            }
+            rs2.close();
+            pstmt2.close();
+            sb.append("]");
+            prodListJson = sb.toString();
+
         } catch (Exception e) {
             out.println("");
         }
@@ -257,6 +305,72 @@
         <div class="footer-links"><a href="help.jsp">幫助中心</a> | <a href="question.jsp">常見問題</a></div>
         <p class="copyright">© COPYRIGHT 807dorm</p>
     </footer>
+
+    <script>
+        // 由伺服器端產生的商品清單，取代 products.json
+        var serverProducts = <%= prodListJson %>;
+        var serverCurrentProduct = {
+            id: <%= pidInt %>,
+            name: '<%= pName.replace("\\", "\\\\").replace("'", "\\'") %>',
+            price: <%= pPrice %>,
+            desc: '<%= pDesc.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n") %>',
+            nutrition: '<%= pNut.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n") %>',
+            img: '<%= (pImg!=null)?pImg:"" %>'
+        };
+        <%
+            // 由 server 端查詢該商品的 reviews 並輸出為 JSON，供前端立即渲染
+            String reviewsJson = "[]";
+            if (conn != null && pidInt > 0) {
+                try {
+                    String q = "SELECT r.reviewId, r.review_userId, r.rating, r.content, r.reviewedAt, u.userName " +
+                               "FROM reviews r LEFT JOIN users u ON r.review_userId = u.userId " +
+                               "WHERE r.review_productId = ? ORDER BY r.reviewedAt DESC";
+                    java.sql.PreparedStatement prs = conn.prepareStatement(q);
+                    prs.setInt(1, pidInt);
+                    java.sql.ResultSet rrs = prs.executeQuery();
+                    StringBuilder rsb = new StringBuilder();
+                    rsb.append("[");
+                    boolean rf = true;
+                    while (rrs.next()) {
+                        if (!rf) rsb.append(','); rf = false;
+                        int rid = rrs.getInt("reviewId");
+                        int ruid = rrs.getInt("review_userId");
+                        int rrating = rrs.getInt("rating");
+                        String rcontent = rrs.getString("content"); if (rcontent==null) rcontent = "";
+                        java.sql.Timestamp rtime = rrs.getTimestamp("reviewedAt");
+                        String rdate = (rtime!=null)? new java.text.SimpleDateFormat("yyyy/MM/dd").format(rtime) : "";
+                        String uname = rrs.getString("userName"); if (uname==null) uname = "匿名";
+                        String escContent = rcontent.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                        String escName = uname.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                        rsb.append('{')
+                           .append("\"reviewId\":").append(rid).append(',')
+                           .append("\"userId\":").append(ruid).append(',')
+                           .append("\"userName\":\"").append(escName).append("\",")
+                           .append("\"rating\":").append(rrating).append(',')
+                           .append("\"date\":\"").append(rdate).append("\",")
+                           .append("\"content\":\"").append(escContent).append("\"")
+                           .append('}');
+                    }
+                    rsb.append("]");
+                    reviewsJson = rsb.toString();
+                    rrs.close(); prs.close();
+                } catch(Exception e) {
+                    reviewsJson = "[]";
+                }
+            }
+        %>
+         var serverReviews = <%= reviewsJson %>;
+         // 從 session 注入登入狀態與使用者資料（若存在）
+         var isLoggedIn = <%= (session.getAttribute("memberEmail") != null) ? "true" : "false" %>;
+         var serverUser = null;
+         <% if (session.getAttribute("memberEmail") != null) {
+             Object mid = session.getAttribute("memberId");
+             String memEmail = (String) session.getAttribute("memberEmail");
+             String memName = (String) session.getAttribute("memberName");
+         %>
+         serverUser = { id: <%= (mid!=null? mid : -1) %>, email: '<%= memEmail.replace("'","\\'") %>', name: '<%= memName.replace("'","\\'") %>' };
+         <% } %>
+    </script>
 
     <script src="assets/js/goods.js"></script>
 

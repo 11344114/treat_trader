@@ -15,7 +15,7 @@ function getDefaultAverageRating() {
 
 window.onload = function() {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if (user) document.getElementById('avatarLink').href = "member.html";
+        if (user) document.getElementById('avatarLink').href = "member.jsp";
     fetchData();
 };
 
@@ -54,23 +54,31 @@ function loadRatingsForProducts(products) {
 }
 
 function fetchData() {
-    fetch('products.json')
-        .then(function(res){ return res.json(); })
-        .then(function(data){
-            allData = data;
-            
-            return loadRatingsForProducts(data).then(function () {
-                var displayData = data;
-                if (searchKey) {
-                    displayData = data.filter(function(p){ return p.name.includes(searchKey); });
-                    document.querySelector('h2').innerText = "搜尋結果： " + searchKey;
-                    if (document.getElementById('midSearch')) {
-                        document.getElementById('midSearch').value = searchKey;
-                    }
-                }
-                renderList(displayData);
-            });
+    var sourcePromise;
+    if (window.serverProducts && window.serverProducts.length) {
+        sourcePromise = Promise.resolve(window.serverProducts);
+    } else {
+        sourcePromise = fetch('products.json').then(function(res){ return res.json(); });
+    }
+
+    sourcePromise.then(function(data){
+        allData = data;
+        // 先快速渲染（不等待評論 API），避免頁面空白或閃爍
+        var displayData = data;
+        if (searchKey) {
+            displayData = data.filter(function(p){ return p.name.includes(searchKey); });
+            document.querySelector('h2').innerText = "搜尋結果： " + searchKey;
+            if (document.getElementById('midSearch')) {
+                document.getElementById('midSearch').value = searchKey;
+            }
+        }
+        renderList(displayData);
+
+        // 非同步載入評論資料，載入完成後更新星等顯示
+        loadRatingsForProducts(data).then(function () {
+            renderList(displayData);
         });
+    });
 }
 
 function calculateAvgRating(pid) {
@@ -99,7 +107,7 @@ function renderList(data) {
                 <i class="fa-solid fa-cookie-bite" style="font-size: 4rem; color: #FFD2A6; margin-bottom: 20px;"></i>
                 <h3 style="color: #5C4033;">喔喔！找不到相關商品</h3>
                 <p style="color: #888; margin-bottom: 20px;">試試看其他關鍵字，或是看看我們的熱門推薦。</p>
-                <button onclick="location.href='allgoods.html'" class="btn">查看所有商品</button>
+                <button onclick="location.href='allgoods.jsp'" class="btn">查看所有商品</button>
             </div>
         `;
         return;
@@ -108,7 +116,7 @@ function renderList(data) {
     container.innerHTML = data.map(function(p) {
         var rating = calculateAvgRating(p.id);
         return '' +
-            '<div class="card product-card" onclick="location.href=\'goods.html?id='+p.id+'\'">' +
+            '<div class="card product-card" onclick="location.href=\'goods.jsp?id='+p.id+'\'">' +
                 '<img class="img-placeholder" src="assets/images/' + p.img + '"></img>' +
                 '<h4>' + p.name + '</h4>' +
                 '<p style="color:#FF7F50; font-weight:bold;">$' + p.price + '</p>' +
@@ -133,11 +141,18 @@ function siteSearch() {
     if (!input) return;
     var val = input.value.trim();
     if(!val) return;
-    fetch('products.json').then(function(r){ return r.json() }).then(function(data){
-        var matches = data.filter(function(p){ return p.name.includes(val); });
+    var source = window.serverProducts && window.serverProducts.length ? window.serverProducts : null;
+    if (source) {
+        var matches = source.filter(function(p){ return p.name.includes(val); });
         if(matches.length === 0) alert("沒有搜尋到相關商品！");
-        else location.href = "allgoods.html?search=" + encodeURIComponent(val);
-    });
+        else location.href = "allgoods.jsp?search=" + encodeURIComponent(val);
+    } else {
+        fetch('products.json').then(function(r){ return r.json() }).then(function(data){
+            var matches = data.filter(function(p){ return p.name.includes(val); });
+            if(matches.length === 0) alert("沒有搜尋到相關商品！");
+            else location.href = "allgoods.jsp?search=" + encodeURIComponent(val);
+        });
+    }
 }
 
 function handleSearchInput(input) {
@@ -145,13 +160,22 @@ function handleSearchInput(input) {
     var box = document.getElementById('searchSuggestions');
     if (!box) return;
     if(val.length < 1) { box.style.display = 'none'; return; }
-    fetch('products.json').then(function(r){ return r.json() }).then(function(data){
-        var matches = data.filter(function(p){ return p.name.toLowerCase().includes(val); });
+    var source = window.serverProducts && window.serverProducts.length ? window.serverProducts : null;
+    if (source) {
+        var matches = source.filter(function(p){ return p.name.toLowerCase().includes(val); });
         if(matches.length > 0) {
-            box.innerHTML = matches.map(function(p){ return '<div onclick="location.href=\'goods.html?id='+p.id+'\'">'+p.name+'</div>'; }).join('');
+            box.innerHTML = matches.map(function(p){ return '<div onclick="location.href=\'goods.jsp?id='+p.id+'\'">'+p.name+'</div>'; }).join('');
             box.style.display = 'block';
         } else { box.style.display = 'none'; }
-    });
+    } else {
+        fetch('products.json').then(function(r){ return r.json() }).then(function(data){
+            var matches = data.filter(function(p){ return p.name.toLowerCase().includes(val); });
+            if(matches.length > 0) {
+                box.innerHTML = matches.map(function(p){ return '<div onclick="location.href=\'goods.jsp?id='+p.id+'\'">'+p.name+'</div>'; }).join('');
+                box.style.display = 'block';
+            } else { box.style.display = 'none'; }
+        });
+    }
 }
 
 function handleEnterFilter(e) { if(e.key === 'Enter') filterProducts(); }

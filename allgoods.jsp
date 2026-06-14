@@ -1,3 +1,28 @@
+<%
+    // 強制設定請求端編碼，防範編碼漏洞與中文亂碼
+    request.setCharacterEncoding("UTF-8");
+
+    // 接收搜尋關鍵字與類別編號
+    String keyword = request.getParameter("keyword");
+    String categoryIdStr = request.getParameter("categoryId");
+
+    if (keyword == null) {
+        keyword = "";
+    }
+
+    int targetCategoryId = 0; // 0 代表不篩選類別（查詢全部）
+    if (categoryIdStr != null && !categoryIdStr.equals("")) {
+        try {
+            // 如果輸入的不是純數字，這裡會直接噴出 NumberFormatException，達到第一線防禦
+            targetCategoryId = Integer.parseInt(categoryIdStr);
+        } catch (NumberFormatException e) {
+            // 發現惡意注入字串，直接強制重定向回安全頁面
+            response.sendRedirect("allgoods.jsp");
+            return;
+        }
+    }
+%>
+
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
 <!DOCTYPE html>
@@ -150,44 +175,110 @@
         
         <div id="productList" class="product-grid">
             <%
+                String prodListJson = "[]";
                 if (conn != null) {
+                    PreparedStatement pstmt = null; 
+                    ResultSet rs = null;
+
                     try {
-                        Statement stmt = conn.createStatement();
-                        // 這裡一樣先撈出 products 表格裡的所有商品
-                        ResultSet rs = stmt.executeQuery("SELECT * FROM products");
+                        // 1. 建立安全的預編譯基礎 SQL 語句
+                        String sql = "SELECT productId, productName, price, img FROM products WHERE productName LIKE ?";
+                        
+                        // 💡 由於你前端下拉選單傳的是字串 (例如 "belgium", "japan")，我們在這裡做個安全的轉換對接
+                        int categoryDbId = 0;
+                        if (categoryIdStr != null) {
+                            if (categoryIdStr.equals("japan")) categoryDbId = 1;
+                            else if (categoryIdStr.equals("belgium")) categoryDbId = 2;
+                            else if (categoryIdStr.equals("france")) categoryDbId = 3;
+                            else if (categoryIdStr.equals("germany")) categoryDbId = 4;
+                            else if (categoryIdStr.equals("italy")) categoryDbId = 5;
+                            else if (categoryIdStr.equals("usa")) categoryDbId = 6;
+                            else if (categoryIdStr.equals("uk")) categoryDbId = 7;
+                            else if (categoryIdStr.equals("korea")) categoryDbId = 8;
+                            else if (categoryIdStr.equals("taiwan")) categoryDbId = 9;
+                        }
+
+                        // 2. 如果選了特定國家，動態安全串接類別預編譯條件
+                        if (categoryDbId > 0) {
+                            sql += " AND products_categoryId = ?";
+                        }
+
+                        pstmt = conn.prepareStatement(sql);
+
+                        // 3. 安全綁定第一個問號（關鍵字模糊搜尋，自動跳脫任何惡意隱碼字元）
+                        pstmt.setString(1, "%" + keyword + "%");
+
+                        // 4. 如果有選國家，安全綁定第二個問號（轉換後的純整數 ID）
+                        if (categoryDbId > 0) {
+                            pstmt.setInt(2, categoryDbId);
+                        }
+
+                        // 5. 執行安全查詢
+                        rs = pstmt.executeQuery();
+
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("[");
+                        boolean first = true;
+                        boolean hasProducts = false;
 
                         while(rs.next()) {
+                            hasProducts = true;
+                            int pid = rs.getInt("productId");
+                            String img = rs.getString("img");
+                            String name = rs.getString("productName");
+                            int price = rs.getInt("price");
             %>
-                            <div class="product-card">
-                                <img class="img-placeholder" src="assets/images/<%= rs.getString("img") %>" alt="<%= rs.getString("productName") %>">
-                                
-                                <h3><%= rs.getString("productName") %></h3>
-                                
+                            <div class="product-card" onclick="location.href='goods.jsp?id=<%= pid %>'">
+                                <img class="img-placeholder" src="assets/images/<%= img %>" alt="<%= name %>">
+                                <h3><%= name %></h3>
                                 <div class="rating-stars">
                                     <i class="fa-solid fa-star active"></i>
                                     <i class="fa-solid fa-star active"></i>
                                     <i class="fa-solid fa-star active"></i>
                                     <i class="fa-solid fa-star active"></i>
-                                    <i class="fa-solid fa-star active"></i>
+                                    <i class="fa-solid fa-star"></i>
                                 </div>
-                                
-                                <p style="color: #e74c3c; font-weight: bold; font-size: 1.2em;">$ <%= rs.getInt("price") %></p>
-                                
-                                <button style="width: 100%; padding: 8px 0; margin-top: 10px; cursor: pointer; background-color: #333; color: white; border: none; border-radius: 4px;">加入購物車</button>
+                                <p style="color: #e74c3c; font-weight: bold; font-size: 1.1em;">$ <%= price %></p>
                             </div>
             <%
+                            if (!first) sb.append(','); first = false;
+                            String nm = name==null?"":name.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                            String im = img==null?"":img.replace("\\", "\\\\").replace("\"", "\\\"");
+                            sb.append('{')
+                              .append("\"id\":").append(pid).append(',')
+                              .append("\"name\":\"").append(nm).append("\",")
+                              .append("\"price\":").append(price).append(',')
+                              .append("\"img\":\"").append(im).append("\"")
+                              .append('}');
+
                         } // 迴圈結束
-                        rs.close();
-                        stmt.close();
+                        sb.append("]");
+                        prodListJson = sb.toString();
+
+                        // 6. 畫出防呆：如果搜尋或類別點下去都查無資料，直接給出找不到商品的提示
+                        if (!hasProducts) {
+            %>
+                            <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                                <img src="assets/images/cookie_cookie.png" alt="無商品" style="width:100px; margin-bottom:15px; opacity:0.7;">
+                                <h3 style="color:#5C4033; margin-bottom:8px;">喔喔！找不到相關商品</h3>
+                                <p style="color:#888; font-size:0.95rem;"> 試試看其他關鍵字，或是更改篩選的國家類別。</p>
+                                <button onclick="location.href='allgoods.jsp'" style="margin-top:15px; padding:10px 20px; background:#FF7F50; color:white; border:none; border-radius:25px; cursor:pointer; font-weight:bold;">查看所有商品</button>
+                            </div>
+            <%
+                        }
+
                     } catch (Exception e) {
                         out.println("<p style='color:red;'>商品載入失敗：" + e.getMessage() + "</p>");
+                    } finally {
+                        if(rs != null) rs.close();
+                        if(pstmt != null) pstmt.close();
                     }
                 } else {
                     out.println("<p style='color:red;'>資料庫連線失敗，請檢查 db.jsp！</p>");
                 }
             %>
         </div>
-        </div>
+        <script>var serverProducts = <%= prodListJson %>;</script>
 
     <div class="scroll-top" onclick="window.scrollTo(0,0)">TOP</div>
 

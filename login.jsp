@@ -1,5 +1,85 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
+<%
+    String message = ""; 
+    
+    if ("POST".equalsIgnoreCase(request.getMethod())) {
+        request.setCharacterEncoding("UTF-8");
+        String action = request.getParameter("action"); 
+        
+        if (conn != null && action != null) {
+            try {
+                // ==================== 1. 會員登入邏輯 ====================
+                if ("login".equals(action)) {
+                    String loginEmail = request.getParameter("loginEmail");
+                    String loginPwd = request.getParameter("loginPwd");
+                    
+                    String sql = "SELECT * FROM users WHERE email = ? AND password = ?";
+                    PreparedStatement pstmt = conn.prepareStatement(sql);
+                    pstmt.setString(1, loginEmail);
+                    pstmt.setString(2, loginPwd);
+                    ResultSet rs = pstmt.executeQuery();
+                    
+                    if (rs.next()) {
+                        session.setAttribute("memberEmail", rs.getString("email"));
+                        session.setAttribute("memberName", rs.getString("userName"));
+                        session.setAttribute("memberPhone", rs.getString("phone"));
+                        
+                        // 🟢 橋樑：讓 Java 印出一段 Script，同時滿足前端 JS 的要求並跳轉
+                        out.println("<script>");
+                        out.println("localStorage.setItem('isLoggedIn', 'true');");
+                        out.println("localStorage.setItem('userName', '" + rs.getString("userName") + "');");
+                        out.println("window.location.href='member.jsp';");
+                        out.println("</script>");
+                        return;
+                    }else {
+                        message = "<script>alert('帳號或密碼錯誤！');</script>";
+                    }
+                    rs.close();
+                    pstmt.close();
+                } 
+                
+                // ==================== 2. 新會員註冊邏輯 ====================
+                else if ("register".equals(action)) {
+                    String regName = request.getParameter("regName");
+                    String regPhone = request.getParameter("regPhone");
+                    String regEmail = request.getParameter("regEmail");
+                    String regPwd = request.getParameter("regPwd");
+                    
+                    // 檢查 Email 是否已經被註冊過
+                    String checkSql = "SELECT email FROM users WHERE email = ?";
+                    PreparedStatement checkPstmt = conn.prepareStatement(checkSql);
+                    checkPstmt.setString(1, regEmail);
+                    ResultSet checkRs = checkPstmt.executeQuery();
+                    
+                    if (checkRs.next()) {
+                        message = "<script>alert('該 Email 已經被註冊過了！');</script>";
+                    } else {
+                        // 🟢 完全對應你的資料表結構，並給予 address 空字串避免報錯
+                        String insertSql = "INSERT INTO users (userName, email, password, phone, address) VALUES (?, ?, ?, ?, ?)";
+                        PreparedStatement insertPstmt = conn.prepareStatement(insertSql);
+                        insertPstmt.setString(1, regName);
+                        insertPstmt.setString(2, regEmail);
+                        insertPstmt.setString(3, regPwd);
+                        insertPstmt.setString(4, regPhone);
+                        insertPstmt.setString(5, ""); // 表單沒有地址，所以填入空字串
+                        
+                        int row = insertPstmt.executeUpdate();
+                        if (row > 0) {
+                            message = "<script>alert('註冊成功！請直接登入。');</script>";
+                        }
+                        insertPstmt.close();
+                    }
+                    checkRs.close();
+                    checkPstmt.close();
+                }
+            } catch (Exception e) {
+                // 如果電話重複 (UQ) 觸發錯誤，也會在這裡顯示
+                message = "<script>alert('系統出錯：" + e.getMessage().replace("'", "\\'") + "');</script>";
+            }
+        }
+    }
+%>
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -9,41 +89,24 @@
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        .login-container {
-            height: 100%;
-        }
-        
-        /* 彈窗樣式 */
+        .login-container { height: 100%; }
         .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none;
+            justify-content: center; align-items: center; z-index: 2000;
         }
-
         .modal-box {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
+            background: white; padding: 30px; border-radius: 10px;
+            width: 90%; max-width: 400px; text-align: center;
         }
-        
         @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr !important;
-            }
+            .container { grid-template-columns: 1fr !important; }
         }
     </style>
 </head>
 <body>
+    <%= message %>
+
     <div class="marquee-container">✨ 歡慶開幕：下單滿額立即免運，配送到家超便利 📦</div>
     
     <header>
@@ -51,14 +114,12 @@
             <img src="assets/images/Logo.PNG" alt="Logo">
             Treat Trader
         </div>
-
         <nav class="main-nav">
             <a href="index.jsp">首頁</a>
             <a href="allgoods.jsp">商品總覽</a>
             <a href="member.jsp">會員資料</a>
             <a href="team.jsp">關於我們</a>
         </nav>
-
         <div class="header-icons">
             <a href="cart.jsp"><i class="fa-solid fa-cart-shopping"></i></a>
             <a href="login.jsp" id="avatarLink"><i class="fa-solid fa-circle-user"></i></a>
@@ -66,26 +127,33 @@
     </header>
 
     <div class="container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+        
         <div class="card login-container">
             <h2>會員登入</h2>
-            <form style="margin-top: 20px;" onsubmit="handleLogin(event)">
-                <input type="email" id="loginEmail" placeholder="帳號 (Email)" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
-                <input type="password" id="loginPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+            <form style="margin-top: 20px;" method="POST" action="login.jsp">
+                <input type="hidden" name="action" value="login">
+                
+                <input type="email" id="loginEmail" name="loginEmail" placeholder="帳號 (Email)" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                <input type="password" id="loginPwd" name="loginPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                
                 <div style="text-align:right; margin-bottom:15px;">
                     <a href="#" onclick="showForgetModal()" style="color:#FF7F50; font-size:0.9rem;">忘記密碼？</a>
                 </div>
-                <button class="btn" style="width:100%; font-size:1.1rem;">登入</button>
+                <button type="submit" class="btn" style="width:100%; font-size:1.1rem;">登入</button>
             </form>
         </div>
 
         <div class="card login-container">
             <h2>新會員註冊</h2>
-            <form style="margin-top: 20px;" onsubmit="handleRegister(event)">
-                <input type="text" id="regName" placeholder="姓名" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
-                <input type="tel" id="regPhone" placeholder="電話號碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
-                <input type="email" id="regEmail" placeholder="Email" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
-                <input type="password" id="regPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
-                <button class="btn" style="width:100%; background:#5C4033; font-size:1.1rem;">註冊</button>
+            <form style="margin-top: 20px;" method="POST" action="login.jsp">
+                <input type="hidden" name="action" value="register">
+                
+                <input type="text" id="regName" name="regName" placeholder="姓名" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                <input type="tel" id="regPhone" name="regPhone" placeholder="電話號碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                <input type="email" id="regEmail" name="regEmail" placeholder="Email" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                <input type="password" id="regPwd" name="regPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px;">
+                
+                <button type="submit" class="btn" style="width:100%; background:#5C4033; font-size:1.1rem;">註冊</button>
             </form>
         </div>
     </div>
@@ -105,20 +173,15 @@
 
     <footer>
         <div class="footer-socials">
-            <a href="https://reurl.cc/xKA8ae" target="_blank">
-                <i class="fa-brands fa-instagram"></i></a>
-            <a href="https://reurl.cc/Vmlo9A" target="_blank">
-                <i class="fa-brands fa-threads"></i></a>
-            <a href="https://reurl.cc/9ba94j" target="_blank">
-                <i class="fa-brands fa-line"></i></a>
-            <a href="mailto:service@example.com">
-                <i class="fa-solid fa-envelope"></i></a>
+            <a href="https://reurl.cc/xKA8ae" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+            <a href="https://reurl.cc/Vmlo9A" target="_blank"><i class="fa-brands fa-threads"></i></a>
+            <a href="https://reurl.cc/9ba94j" target="_blank"><i class="fa-brands fa-line"></i></a>
+            <a href="mailto:service@example.com"><i class="fa-solid fa-envelope"></i></a>
         </div>
         <div class="footer-links"><a href="help.jsp">幫助中心</a> | <a href="question.jsp">常見問題</a></div>
         <p class="copyright">© COPYRIGHT 807dorm</p>
     </footer>
 
     <script src="assets/js/login.js"></script>
-
 </body>
 </html>

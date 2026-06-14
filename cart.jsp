@@ -1,5 +1,16 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
+<%
+    // 從後端 Session 抓取登入狀態
+    String cartUserEmail = (String) session.getAttribute("memberEmail");
+
+    // 如果抓不到 Email，代表這個人沒登入
+    if (cartUserEmail == null || cartUserEmail.isEmpty()) {
+        // 用 Java 強制把他踢回 login.jsp
+        out.println("<script>alert('要先登入才能使用購物車喔！'); window.location.href='login.jsp';</script>");
+        return; // 阻止底下的網頁繼續載入
+    }
+%>
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>

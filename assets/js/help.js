@@ -1,6 +1,20 @@
 window.onload = function() {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if(user) document.getElementById('avatarLink').href = "member.html";
+    if(user) document.getElementById('avatarLink').href = "member.jsp";
+
+    // 幫助中心表單處理：若登入則自動填入隱藏 userId 與 email；若未登入也允許提交
+    var form = document.getElementById('helpForm');
+    if (form) {
+        form.addEventListener('submit', function(e){
+            var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+            var hid = document.getElementById('help_center_userId');
+            var emailInput = document.getElementById('help_email');
+            var nameInput = document.getElementById('help_name');
+            if (user && hid) hid.value = user.id;
+            if (user && emailInput && user.email) emailInput.value = user.email;
+            // 不阻擋提交，讓未登入者也能送出表單
+        });
+    }
 };
 
 function handleEnter(e) { if(e.key === 'Enter') siteSearch(); }

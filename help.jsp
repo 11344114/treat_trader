@@ -1,5 +1,52 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
+<%
+    // 處理表單送出 (POST)
+    boolean helpSubmitted = false;
+    String helpError = null;
+    if ("POST".equalsIgnoreCase(request.getMethod())) {
+        try {
+            String userIdStr = request.getParameter("help_center_userId");
+            String name = request.getParameter("name");
+            String email = request.getParameter("email");
+            String question = request.getParameter("question");
+
+            Integer userId = null;
+            try { if (userIdStr != null && !userIdStr.trim().isEmpty()) userId = Integer.valueOf(userIdStr); } catch(Exception ex) { userId = null; }
+
+            if (conn == null) throw new Exception("資料庫連線失敗");
+
+            // 檢查 help_center 是否有 name 欄位
+            java.sql.DatabaseMetaData dbmd = conn.getMetaData();
+            ResultSet colRs = dbmd.getColumns(null, null, "help_center", "name");
+            boolean hasName = colRs.next();
+            colRs.close();
+
+            java.sql.PreparedStatement ins = null;
+            if (hasName) {
+                String insertSql = "INSERT INTO help_center (help_center_userId, name, email, question) VALUES (?, ?, ?, ?)";
+                ins = conn.prepareStatement(insertSql);
+                if (userId != null) ins.setInt(1, userId); else ins.setNull(1, java.sql.Types.INTEGER);
+                ins.setString(2, name != null ? name : "");
+                ins.setString(3, email != null ? email : "");
+                ins.setString(4, question != null ? question : "");
+            } else {
+                String insertSql = "INSERT INTO help_center (help_center_userId, email, question) VALUES (?, ?, ?)";
+                ins = conn.prepareStatement(insertSql);
+                if (userId != null) ins.setInt(1, userId); else ins.setNull(1, java.sql.Types.INTEGER);
+                ins.setString(2, email != null ? email : "");
+                ins.setString(3, question != null ? question : "");
+            }
+
+            ins.executeUpdate();
+            ins.close();
+
+            helpSubmitted = true;
+        } catch (Exception e) {
+            helpError = e.getMessage();
+        }
+    }
+%>
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -55,21 +102,33 @@
     <div class="container" style="max-width: 800px;">
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">幫助中心</h2>
-            <form class="help-form" onsubmit="alert('感謝您的回饋，我們會盡快回覆！'); this.reset(); event.preventDefault();">
+            <form id="helpForm" class="help-form" method="post" action="help.jsp">
+                <input type="hidden" id="help_center_userId" name="help_center_userId" value="">
                 <div class="form-group">
                     <label>姓名</label>
-                    <input type="text" required placeholder="請輸入您的姓名">
+                    <input type="text" id="help_name" name="name" required placeholder="請輸入您的姓名">
                 </div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" required placeholder="請輸入您的聯絡信箱">
+                    <input type="email" id="help_email" name="email" required placeholder="請輸入您的聯絡信箱">
                 </div>
                 <div class="form-group">
                     <label>問題或建議</label>
-                    <textarea required style="height:150px;" placeholder="請描述您遇到的問題或建議..."></textarea>
+                    <textarea id="help_question" name="question" required style="height:150px;" placeholder="請描述您遇到的問題或建議..."></textarea>
                 </div>
-                <button class="btn" style="width:100%;">送出</button>
+                <button class="btn" style="width:100%">送出</button>
             </form>
+            <%
+                if (helpSubmitted) {
+            %>
+                <script>alert('感謝您的回饋，我們已收到，會盡快回覆！');</script>
+            <%
+                } else if (helpError != null) {
+            %>
+                <div style="color:red; margin-top:10px;">送出失敗：<%= helpError %></div>
+            <%
+                }
+            %>
         </div>
     </div>
 

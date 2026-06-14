@@ -9,10 +9,14 @@ var currentPage = 1;
 var reviewsPerPage = 2;
 
 window.onload = function () {
-    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+    var isLogged = (typeof window.isLoggedIn !== 'undefined') ? window.isLoggedIn : false;
+    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
+    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
+    var user = serverUser || localUser || null;
+
     if (user) {
         var avatar = document.getElementById('avatarLink');
-        if (avatar) avatar.href = "member.html";
+        if (avatar) avatar.href = "member.jsp";
     } else {
         var reviewInput = document.getElementById('userReview');
         var submitBtn = document.getElementById('submitReviewBtn');
@@ -30,40 +34,45 @@ window.onload = function () {
             starCont.style.opacity = '0.5';
         }
     }
-
     setRating(5);
 
-    fetch('products.json')
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            currentProduct = data.find(function (p) { return p.id == pid; });
-            if (currentProduct) {
-                document.getElementById('pName').innerText = currentProduct.name;
-                document.getElementById('pPrice').innerText = '$' + currentProduct.price;
-                document.getElementById('pDesc').innerText = currentProduct.desc;
-                document.getElementById('pNut').innerText = currentProduct.nutrition;
+    // 使用伺服器在頁面中嵌入的資料，取代 products.json
+    var data = window.serverProducts || [];
+    // 嘗試先從 serverProducts 找商品，找不到再看 serverCurrentProduct（由 JSP 直接輸出）
+    currentProduct = data.find(function (p) { return String(p.id) === String(pid); });
+    if (!currentProduct && window.serverCurrentProduct) currentProduct = window.serverCurrentProduct;
 
-                var imgContainer = document.getElementById('pImg');
-                var imagePath = "assets/images/" + currentProduct.img;
-                var imgHtml = '<img src="' + imagePath + '" alt="' + currentProduct.name + '" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">';
-                imgContainer.innerHTML = imgHtml;
-                imgContainer.style.background = "none";
+    if (currentProduct) {
+        document.getElementById('pName').innerText = currentProduct.name || document.getElementById('pName').innerText;
+        document.getElementById('pPrice').innerText = '$' + (currentProduct.price || document.getElementById('pPrice').innerText.replace(/[^0-9]/g, ''));
+        document.getElementById('pDesc').innerText = currentProduct.desc || document.getElementById('pDesc').innerText;
+        document.getElementById('pNut').innerText = currentProduct.nutrition || document.getElementById('pNut').innerText;
 
-                loadReviews();
-                loadRecs(data);
-            }
-        });
+        var imgContainer = document.getElementById('pImg');
+        var imagePath = "assets/images/" + (currentProduct.img || '');
+        var imgHtml = '<img src="' + imagePath + '" alt="' + (currentProduct.name || '') + '" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">';
+        imgContainer.innerHTML = imgHtml;
+        imgContainer.style.background = "none";
+
+        loadReviews();
+        loadRecs(data);
+    } else {
+        // 若沒有找到伺服器端清單，仍載入評論（評論來自 API）
+        loadReviews();
+        loadRecs([]);
+    }
 };
 
 function loadRecs(all) {
-    var recs = all.filter(function (p) { return p.id != pid; }).slice(0, 4);
+    var source = (all && all.length) ? all : (window.serverProducts || []);
+    var recs = source.filter(function (p) { return String(p.id) != String(pid); }).slice(0, 4);
     var recList = document.getElementById("recList");
     if (!recList) return;
 
     recList.innerHTML = recs.map(function (p) {
         var recImgPath = "assets/images/" + p.img;
         return '' +
-            '<div class="card" style="text-align:center; cursor:pointer;" onclick="location.href=\'goods.html?id=' + p.id + '\'">' +
+                '<div class="card" style="text-align:center; cursor:pointer;" onclick="location.href=\'goods.jsp?id=' + p.id + '\'">' +
                 '<div style="height:150px; margin-bottom:10px; overflow:hidden; border-radius:10px; background:#f9f9f9;">' +
                     '<img src="' + recImgPath + '" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display=\'none\'">' +
                 '</div>' +
@@ -74,8 +83,11 @@ function loadRecs(all) {
 }
 
 function getCartKey() {
-    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    return user ? 'tt_cart_user_' + user.id : 'tt_cart';
+    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
+    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
+    var u = serverUser || localUser;
+    if (u && (u.id || u.email)) return 'tt_cart_user_' + (u.id ? u.id : u.email);
+    return 'tt_cart';
 }
 
 function getCart() {
@@ -95,10 +107,13 @@ function saveCart(cart) {
 }
 
 function addToCart(goCheckout) {
-    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if (!user) {
+    var isLogged = (typeof window.isLoggedIn !== 'undefined') ? window.isLoggedIn : false;
+    var serverUser = (typeof window.serverUser !== 'undefined' && window.serverUser) ? window.serverUser : null;
+    var localUser = JSON.parse(localStorage.getItem('tt_currentUser'));
+    var user = serverUser || localUser;
+    if (!isLogged && !user) {
         alert("請先登入會員後再進行購物！");
-        location.href = "login.html";
+        location.href = "login.jsp";
         return;
     }
     if (!currentProduct) return;
@@ -109,7 +124,7 @@ function addToCart(goCheckout) {
     else cart.push({ id: pid, qty: 1, name: currentProduct.name, price: currentProduct.price });
 
     saveCart(cart);
-    if (goCheckout) location.href = 'cart.html';
+    if (goCheckout) location.href = 'cart.jsp';
     else alert("已加入購物車！");
 }
 
@@ -173,55 +188,81 @@ function updateProductRatingFromReviews(reviews) {
 }
 
 function loadReviews() {
+    var container = document.getElementById('commentList');
+    if (!container) return;
+
+    // 先使用伺服器內嵌的預設評論（若有），立即顯示
+    var serverList = window.serverReviews || [];
+    var allReviews = serverList.slice();
+
+    function renderReviewsList(reviews) {
+        reviews = reviews || [];
+        if (reviews.length === 0) {
+            container.innerHTML = '<p style="padding:10px;">目前尚無評論，快來當第一個評論的人！</p>';
+            renderPagination(1);
+            return;
+        }
+
+        reviews.sort(function (a, b) {
+            var da = new Date(a.date || a.reviewedAt || '');
+            var db = new Date(b.date || b.reviewedAt || '');
+            return db - da;
+        });
+
+        var totalPages = Math.ceil(reviews.length / reviewsPerPage);
+        if (totalPages === 0) totalPages = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        var start = (currentPage - 1) * reviewsPerPage;
+        var end = start + reviewsPerPage;
+        var pageReviews = reviews.slice(start, end);
+
+        if (pageReviews.length === 0) {
+            container.innerHTML = '<p style="padding:10px;">目前尚無評論，快來當第一個評論的人！</p>';
+        } else {
+            container.innerHTML = pageReviews.map(function (r) {
+                var stars = '';
+                var rating = Number(r.rating) || 0;
+                for (var i = 0; i < 5; i++) {
+                    var cls = (i < rating) ? 'filled' : 'empty';
+                    stars += '<span class="review-star ' + cls + '">★</span>';
+                }
+                return '' +
+                    '<div class="review-card">' +
+                        '<div class="review-header">' +
+                            '<span class="review-user">' + (r.userName || r.userName || '匿名') + '</span>' +
+                            '<span class="review-date">' + (r.date || '') + '</span>' +
+                        '</div>' +
+                        '<div class="review-rating">' + stars + '</div>' +
+                        '<div class="review-content">' + (r.content || '') + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        renderPagination(totalPages);
+    }
+
+    // 先用伺服器評論快速渲染與計算星等
+    updateProductRatingFromReviews(allReviews);
+    renderReviewsList(allReviews);
+
+    // 再向 API 取得即時評論並合併更新（避免重複以 reviewId 為依據）
     fetch(API_BASE + "/Reviews/product/" + pid + "?page=1&pageSize=9999")
         .then(function (res) { return res.json(); })
         .then(function (data) {
             var realReviews = data.items || [];
-            var allReviews = getFakeReviewsForProduct().concat(realReviews);
-
-            updateProductRatingFromReviews(allReviews);
-
-            allReviews.sort(function (a, b) {
-                var da = new Date(a.date);
-                var db = new Date(b.date);
-                return db - da;
+            // 將伺服器預設 reviews 與 API reviews 合併，避免重複
+            var merged = allReviews.slice();
+            var exists = {};
+            merged.forEach(function(r){ if (r.reviewId) exists['id_'+r.reviewId]=true; else if (r.content) exists['c_'+(r.content+'|'+(r.date||''))]=true; });
+            realReviews.forEach(function(rr){
+                var key = rr.reviewId ? 'id_'+rr.reviewId : 'c_'+(rr.content+'|'+(rr.date||''));
+                if (!exists[key]) { merged.push(rr); exists[key]=true; }
             });
 
-            var totalPages = Math.ceil(allReviews.length / reviewsPerPage);
-            if (totalPages === 0) totalPages = 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            var start = (currentPage - 1) * reviewsPerPage;
-            var end = start + reviewsPerPage;
-            var pageReviews = allReviews.slice(start, end);
-
-            var container = document.getElementById('commentList');
-            if (!container) return;
-
-            if (pageReviews.length === 0) {
-                container.innerHTML = '<p style="padding:10px;">目前尚無評論，快來當第一個評論的人！</p>';
-            } else {
-                container.innerHTML = pageReviews.map(function (r) {
-                    var stars = '';
-                    var rating = r.rating || 0;
-                    for (var i = 0; i < 5; i++) {
-                        var cls = (i < rating) ? 'filled' : 'empty';
-                        stars += '<span class="review-star ' + cls + '">★</span>';
-                    }
-                    return '' +
-                        '<div class="review-card">' +
-                            '<div class="review-header">' +
-                                '<span class="review-user">' + (r.userName || '匿名') + '</span>' +
-                                '<span class="review-date">' + (r.date || '') + '</span>' +
-                            '</div>' +
-                            '<div class="review-rating">' + stars + '</div>' +
-                            '<div class="review-content">' + (r.content || '') + '</div>' +
-                        '</div>';
-                }).join('');
-            }
-
-            renderPagination(totalPages);
+            updateProductRatingFromReviews(merged);
+            renderReviewsList(merged);
         })
         .catch(function (err) {
             console.error("讀取評論失敗", err);
@@ -324,13 +365,10 @@ function siteSearch() {
     var val = input.value.trim();
     if (!val) return;
 
-    fetch('products.json')
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            var matches = data.filter(function (p) { return p.name.includes(val); });
-            if (matches.length === 0) alert("沒有搜尋到相關商品！");
-            else location.href = "allgoods.html?search=" + encodeURIComponent(val);
-        });
+    var data = window.serverProducts || [];
+    var matches = data.filter(function (p) { return (p.name || '').includes(val); });
+    if (matches.length === 0) alert("沒有搜尋到相關商品！");
+    else location.href = "allgoods.jsp?search=" + encodeURIComponent(val);
 }
 
 function handleSearchInput(input) {
@@ -342,20 +380,16 @@ function handleSearchInput(input) {
         box.style.display = 'none';
         return;
     }
-
-    fetch('products.json')
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            var matches = data.filter(function (p) {
-                return p.name.toLowerCase().includes(val);
-            });
-            if (matches.length > 0) {
-                box.innerHTML = matches.map(function (p) {
-                    return '<div onclick="location.href=\'goods.html?id=' + p.id + '\'">' + p.name + '</div>';
-                }).join('');
-                box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
-        });
+    var data = window.serverProducts || [];
+    var matches = data.filter(function (p) {
+        return (p.name || '').toLowerCase().includes(val);
+    });
+    if (matches.length > 0) {
+        box.innerHTML = matches.map(function (p) {
+            return '<div onclick="location.href=\'goods.jsp?id=' + p.id + '\'">' + p.name + '</div>';
+        }).join('');
+        box.style.display = 'block';
+    } else {
+        box.style.display = 'none';
+    }
 }

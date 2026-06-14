@@ -1,5 +1,23 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ include file="db.jsp" %>
+
+<%
+    // ===== 訪客計數器核心邏輯 =====
+    int visitCounter = 0;
+    synchronized(application) {
+        Object currentCount = application.getAttribute("visit_counter");
+        if (currentCount == null) {
+            visitCounter = 0; // 初始值
+        } else {
+            visitCounter = (Integer) currentCount;
+        }
+        if (session.isNew()) {
+            visitCounter++;
+            application.setAttribute("visit_counter", visitCounter);
+        }
+    }
+%>
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -42,8 +60,7 @@
     </style>
 </head>
 <body>
-    <div class="marquee-container">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！ ✨</div>
-
+    <div class="marquee-container">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #fff;"><%= visitCounter %></strong> 人次 ✨</div>
     <header>
         <div class="logo" onclick="location.href='index.jsp'">
             <img src="assets/images/Logo.PNG" alt="Logo">
@@ -72,26 +89,48 @@
         <div id="recommendList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-top: 20px;">
             <%
                 // 檢查 db.jsp 有沒有成功建立連線
+                String prodListJson = "[]";
                 if (conn != null) {
                     try {
                         Statement stmt = conn.createStatement();
                         // 下達 SQL 指令去 products 表格撈資料
-                        ResultSet rs = stmt.executeQuery("SELECT * FROM products");
+                        ResultSet rs = stmt.executeQuery("SELECT productId, productName, price, img FROM products LIMIT 8");
+
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("[");
+                        boolean firstJson = true;
 
                         // 只要資料庫裡還有下一筆商品，就繼續印出 HTML 卡片
                         while(rs.next()) {
+                            int pid = rs.getInt("productId");
+                            String img = rs.getString("img");
+                            String name = rs.getString("productName");
+                            int price = rs.getInt("price");
+                            
+                            if (!firstJson) sb.append(','); firstJson = false;
+                            String nm = name==null?"":name.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                            String im = img==null?"":img.replace("\\", "\\\\").replace("\"", "\\\"");
+                            sb.append('{')
+                              .append("\"id\":").append(pid).append(',')
+                              .append("\"name\":\"").append(nm).append("\",")
+                              .append("\"price\":").append(price).append(',')
+                              .append("\"img\":\"").append(im).append("\"")
+                              .append('}');
+
             %>
-                            <div class="card">
-                                <img class="img-placeholder" src="assets/images/<%= rs.getString("img") %>" alt="<%= rs.getString("productName") %>" style="width: 150px; height: 150px; object-fit: cover;">
-                                
-                                <h3><%= rs.getString("productName") %></h3>
-                                
-                                <p style="color: #e74c3c; font-weight: bold; font-size: 1.2em;">$ <%= rs.getInt("price") %></p>
-                                
+                            <div class="card" onclick="location.href='goods.jsp?id=<%= pid %>'">
+                                <div class="img-placeholder">
+                                    <img src="assets/images/<%= img %>" alt="<%= name %>" style="width: 150px; height: 150px; object-fit: cover;">
+                                </div>
+                                <h3><%= name %></h3>
+                                <p style="color: #e74c3c; font-weight: bold; font-size: 1.2em;">$ <%= price %></p>
                                 <button style="padding: 8px 20px; cursor: pointer; background-color: #333; color: white; border: none; border-radius: 4px;">加入購物車</button>
                             </div>
             <%
                         } // 迴圈結束
+
+                        sb.append("]");
+                        prodListJson = sb.toString();
 
                         // 養成好習慣：用完把查詢結果關閉
                         rs.close();
@@ -105,11 +144,19 @@
                 }
             %>
         </div>
+        <script>
+            // 由伺服器在頁面內提供的推薦商品清單
+            var serverProducts = <%= prodListJson %>;
+        </script>
     </div>
 
     <div class="scroll-top" onclick="window.scrollTo(0,0)">TOP</div>
 
     <footer>
+        <p style="margin-bottom: 15px; font-size: 0.95rem; color: #666;"> 
+        歡迎光臨～您是本站第 <strong style="color: #FF7F50;"><%= visitCounter %></strong> 位客人！ 
+        </p>
+
         <div class="footer-socials">
             <a href="https://reurl.cc/xKA8ae" target="_blank"><i class="fa-brands fa-instagram"></i></a>
             <a href="https://reurl.cc/Vmlo9A" target="_blank"><i class="fa-brands fa-threads"></i></a>

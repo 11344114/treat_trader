@@ -19,7 +19,7 @@ var ads = [
 
 function clickAd() { 
     if (currentAdId) {
-        location.href = "goods.html?id=" + currentAdId; 
+        location.href = "goods.jsp?id=" + currentAdId; 
     }
 }
 
@@ -56,7 +56,7 @@ function updateAd() {
 document.addEventListener('DOMContentLoaded', function() {
     // 搬過來的會員判斷邏輯
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if(user) document.getElementById('avatarLink').href = "member.html";
+    if(user) document.getElementById('avatarLink').href = "member.jsp";
 
     // 啟動廣告
     updateAd();
@@ -64,9 +64,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // --- 商品載入功能 ---
-fetch('products.json').then(function(res) { return res.json(); }).then(function(data) { 
-    renderProducts(data.slice(0, 8)); // 抓前 8 個當推薦
-});
+if (window.serverProducts && window.serverProducts.length) {
+    renderProducts(window.serverProducts.slice(0, 8));
+} else {
+    fetch('products.json').then(function(res) { return res.json(); }).then(function(data) { 
+        renderProducts(data.slice(0, 8)); // 抓前 8 個當推薦
+    });
+}
 
 function renderProducts(list) {
     var container = document.getElementById("recommendList");
@@ -83,7 +87,7 @@ function renderProducts(list) {
     }
 
     container.innerHTML = list.map(function(p){
-        return '<div class="card" onclick="location.href=\'goods.html?id='+p.id+'\'">' +
+        return '<div class="card" onclick="location.href=\'goods.jsp?id='+p.id+'\'">' +
             '<div class="img-placeholder">' + 
             '<img src="assets/images/' + p.img + '" alt="' + p.name + '" style="width:100%; height:100%; object-fit:cover;">' + 
             '</div>' +
