@@ -209,9 +209,13 @@ function loadReviews() {
     var container = document.getElementById('commentList');
     if (!container) return;
 
-    // 先使用伺服器內嵌的預設評論（若有），立即顯示
+    // 先使用伺服器內嵌的預設評論（若有）以及本地暫存評論，立即顯示
     var serverList = window.serverReviews || [];
-    var allReviews = serverList.slice();
+    var localAll = [];
+    try { localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]'); } catch(e){ localAll = []; }
+    // 只取屬於當前商品的本地評論
+    var localForProduct = (localAll||[]).filter(function(r){ return String(r.productId) === String(pid); }).map(function(r){ return r; });
+    var allReviews = serverList.slice().concat(localForProduct);
 
     function renderReviewsList(reviews) {
         reviews = reviews || [];
@@ -261,30 +265,10 @@ function loadReviews() {
         renderPagination(totalPages);
     }
 
-    // 先用伺服器評論快速渲染與計算星等
+    // 先用伺服器評論快速渲染與計算星等（含本地暫存評論）
     updateProductRatingFromReviews(allReviews);
     renderReviewsList(allReviews);
-
-    // 再向 API 取得即時評論並合併更新（避免重複以 reviewId 為依據）
-    fetch(API_BASE + "/Reviews/product/" + pid + "?page=1&pageSize=9999")
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            var realReviews = data.items || [];
-            // 將伺服器預設 reviews 與 API reviews 合併，避免重複
-            var merged = allReviews.slice();
-            var exists = {};
-            merged.forEach(function(r){ if (r.reviewId) exists['id_'+r.reviewId]=true; else if (r.content) exists['c_'+(r.content+'|'+(r.date||''))]=true; });
-            realReviews.forEach(function(rr){
-                var key = rr.reviewId ? 'id_'+rr.reviewId : 'c_'+(rr.content+'|'+(rr.date||''));
-                if (!exists[key]) { merged.push(rr); exists[key]=true; }
-            });
-
-            updateProductRatingFromReviews(merged);
-            renderReviewsList(merged);
-        })
-        .catch(function (err) {
-            console.error("讀取評論失敗", err);
-        });
+    // 不再依賴外部 API 或 DB：若之後要同步可在此加入 fetch
 }
 
 function renderPagination(totalPages) {
@@ -336,31 +320,53 @@ function submitReview() {
         return;
     }
 
-    fetch(API_BASE + "/Reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            productId: parseInt(pid),
-            userId: user.id,
-            userName: user.name,
+    // 將評論存在 localStorage（不送回資料庫）
+    try {
+        var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth()+1).padStart(2,'0');
+        var dd = String(now.getDate()).padStart(2,'0');
+        var dateStr = yyyy + '/' + mm + '/' + dd;
+        var reviewObj = {
+            reviewId: 'local_' + Date.now(),
+            productId: pid,
+            productName: (currentProduct && currentProduct.name) || (window.serverCurrentProduct && window.serverCurrentProduct.name) || null,
+            userId: user.id || null,
+            userName: user.name || (user.email || '匿名'),
             rating: currentRating,
+            date: dateStr,
             content: content
-        })
-    })
-    .then(function (res) {
-        if (!res.ok) return res.json().then(function (err) { throw err; });
-        return res.json();
-    })
-    .then(function () {
-        alert("評論已送出！");
-        contentInput.value = "";
+        };
+        localAll.push(reviewObj);
+        localStorage.setItem('tt_localReviews', JSON.stringify(localAll));
+        // 通知同頁面或其他分頁更新商品清單評分
+        try { window.dispatchEvent(new Event('localReviewsUpdated')); } catch(e) {}
+        // 顯示非阻斷式成功訊息於評論區上方
+        try {
+            var msg = document.getElementById('reviewStatus');
+            if (!msg) {
+                msg = document.createElement('div');
+                msg.id = 'reviewStatus';
+                msg.style.padding = '10px';
+                msg.style.marginTop = '8px';
+                msg.style.borderRadius = '6px';
+                msg.style.background = '#e6ffed';
+                msg.style.color = '#1b5e20';
+                var parent = contentInput.parentNode || document.body;
+                parent.insertBefore(msg, contentInput);
+            }
+            msg.textContent = '評論已儲存在本機並顯示於頁面上';
+            // 3 秒後淡出
+            setTimeout(function(){ try { msg.style.transition='opacity 0.6s'; msg.style.opacity='0'; setTimeout(function(){ if(msg && msg.parentNode) msg.parentNode.removeChild(msg); }, 600); } catch(e){} }, 3000);
+        } catch(e){ console.error(e); }
+        contentInput.value = '';
         currentPage = 1;
         loadReviews();
-    })
-    .catch(function (err) {
-        alert(err.message || "評論送出失敗");
-        console.error(err);
-    });
+    } catch (e) {
+        console.error('本地儲存評論失敗', e);
+        alert('評論儲存失敗');
+    }
 }
 
 function switchTab(e, id) {

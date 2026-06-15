@@ -77,7 +77,7 @@
 
                 <div class="card">
                     <h2 class="member-section-title">歷史消費紀錄</h2>
-                    <table>
+                    <table id="orderHistoryTable">
                         <tr><th>訂單編號</th><th>日期</th><th>金額</th><th>狀態</th><th>付款方式</th></tr>
                         <%
                             // 🟢 自動去 orders 表格撈取這個人的訂單！
@@ -116,6 +116,40 @@
                                     out.println("<tr><td colspan='5' style='color:red;'>無法讀取訂單：" + e.getMessage() + "</td></tr>");
                                 }
                             }
+                        %>
+                    </table>
+                    <script>
+                        (function(){
+                            try {
+                                // 讀取本地 localStorage 中的 tt_orders，並把屬於當前會員的插入表格
+                                var localOrders = JSON.parse(localStorage.getItem('tt_orders') || '[]');
+                                if (!localOrders || !localOrders.length) return;
+                                var memberEmail = '<%= mEmail != null ? mEmail.replace("'","\\'") : "" %>';
+                                var table = document.getElementById('orderHistoryTable');
+                                if (!table) return;
+                                // 若有「尚無訂單紀錄」提示列，先移除（將由本地訂單填補）
+                                try {
+                                    var rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+                                    rows.forEach(function(r){ if(r.innerText && r.innerText.indexOf('尚無訂單紀錄') !== -1) r.parentNode.removeChild(r); });
+                                } catch(e){}
+
+                                // 插入本地訂單在表格上方
+                                localOrders.forEach(function(o){
+                                    if (memberEmail && o.userEmail && o.userEmail !== memberEmail) return;
+                                    var d = new Date(o.orderDate || '');
+                                    var dateStr = isNaN(d.getTime()) ? (o.orderDate||'') : (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+                                    var tr = document.createElement('tr');
+                                    tr.innerHTML = '<td>#' + o.orderId + '</td>' +
+                                                   '<td>' + dateStr + '</td>' +
+                                                   '<td>NT$' + (o.total || 0) + '</td>' +
+                                                   '<td>' + (o.status || '') + '</td>' +
+                                                   '<td>' + (o.payment || '') + '</td>';
+                                    // 把新訂單插在表格第一個資料列之後（保留 server-side header）
+                                    table.appendChild(tr);
+                                });
+                            } catch(e) { console.error(e); }
+                        })();
+                    </script>
                         %>
                     </table>
                 </div>
@@ -173,6 +207,38 @@
                             }
                         %>
                     </div>
+                    <script>
+                        (function(){
+                            try {
+                                var memberName = '<%= mName != null ? mName.replace("'","\\'") : "" %>';
+                                var myReviewsEl = document.getElementById('myReviews');
+                                if (!myReviewsEl) return;
+                                var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
+                                var currentUser = null;
+                                try { currentUser = JSON.parse(localStorage.getItem('tt_currentUser') || 'null'); } catch(e){ currentUser = null; }
+                                var filtered = (localAll||[]).filter(function(r){
+                                    if (currentUser && r.userId && currentUser.id && String(r.userId) === String(currentUser.id)) return true;
+                                    if (r.userName && r.userName === memberName) return true;
+                                    return false;
+                                });
+                                if (filtered.length === 0) return;
+                                // 插入本地評論（放在上方）
+                                var html = filtered.map(function(r){
+                                    var stars = ''; for(var i=1;i<=5;i++) stars += (i <= (r.rating||0)) ? '★' : '☆';
+                                    var content = r.content || '（僅評分）';
+                                    var date = r.date || '';
+                                    return '<div class="review-record">' +
+                                           '<div class="review-prod-name">📦 商品：' + (r.productName||('商品#'+r.productId)) + '</div>' +
+                                           '<div class="review-stars">' + stars + ' (' + (r.rating||0) + ' 分)</div>' +
+                                           '<div class="review-text">💬 ' + (content) + '</div>' +
+                                           '<div class="review-meta">發表日期：' + date + '</div>' +
+                                           '</div>';
+                                }).join('');
+                                // 將本地評論插在現有內容之前
+                                myReviewsEl.innerHTML = html + myReviewsEl.innerHTML;
+                            } catch(e) { console.error(e); }
+                        })();
+                    </script>
                 </div>
                 
             </div>

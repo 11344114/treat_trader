@@ -152,11 +152,51 @@ function updateCheckoutList(cart) {
 
 // 這裡我們把結帳改成直接提交表單，而不是 fetch
 function submitOrder() {
-    alert("訂單已提交！(請確保已將結帳邏輯寫入 orderAction.jsp)");
-    // 這裡以後可以改成：
-    // document.getElementById('yourForm').submit();
-    saveCart([]); // 清空購物車
-    window.location.href = 'member.jsp';
+    // 建立本地訂單記錄，存入 localStorage 的 tt_orders
+    try {
+        var cart = getCart();
+        if (!cart || cart.length === 0) {
+            alert('購物車為空，無法下單');
+            return;
+        }
+        var currentUser = null;
+        try { currentUser = JSON.parse(localStorage.getItem('tt_currentUser') || 'null'); } catch(e){ currentUser = null; }
+
+        var totalText = (document.getElementById('checkoutTotal') && document.getElementById('checkoutTotal').innerText) || '';
+        var total = 0;
+        try { total = Number(totalText.replace(/[^0-9\.]/g, '')) || 0; } catch(e) { total = 0; }
+
+        var shipMethod = (document.getElementById('shipMethodValue') && document.getElementById('shipMethodValue').value) || '';
+        var payMethod = (document.getElementById('payMethodValue') && document.getElementById('payMethodValue').value) || '';
+
+        var now = new Date();
+        var orderId = 'local_' + Date.now();
+        var order = {
+            orderId: orderId,
+            userId: currentUser && currentUser.id ? currentUser.id : null,
+            userEmail: currentUser && currentUser.email ? currentUser.email : null,
+            userName: currentUser && currentUser.name ? currentUser.name : null,
+            items: cart,
+            total: total,
+            shipping: shipMethod,
+            payment: payMethod,
+            status: '已建立',
+            orderDate: now.toISOString()
+        };
+
+        var allOrders = [];
+        try { allOrders = JSON.parse(localStorage.getItem('tt_orders') || '[]'); } catch(e) { allOrders = []; }
+        allOrders.unshift(order);
+        localStorage.setItem('tt_orders', JSON.stringify(allOrders));
+        localStorage.setItem('tt_latestOrder', JSON.stringify(order));
+
+        // 清空購物車並導向會員頁
+        saveCart([]);
+        window.location.href = 'member.jsp';
+    } catch (e) {
+        console.error('下單失敗', e);
+        alert('下單發生錯誤，請稍後再試');
+    }
 }
 
 function initMap() {

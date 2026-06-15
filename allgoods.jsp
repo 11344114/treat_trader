@@ -62,15 +62,7 @@
             display: block;
             object-fit: cover;
         }
-        .rating-stars {
-            color: #ccc;
-            font-size: 0.9rem;
-            margin-top: 5px;
-            margin-bottom: 10px;
-        }
-        .rating-stars .active {
-            color: #e2b007;
-        }
+        /* 商品總覽已移除星等顯示 */
         
         .mid-filter { 
             background: white; 
@@ -236,7 +228,6 @@
                             <div class="product-card" onclick="location.href='goods.jsp?id=<%= pid %>'">
                                 <img class="img-placeholder" src="assets/images/<%= img %>" alt="<%= name %>">
                                 <h3><%= name %></h3>
-                                <div class="rating-stars"><span style="color:#aaa; font-size: 0.8rem;">(載入中...)</span></div>
                                 <p style="color: #e74c3c; font-weight: bold; font-size: 1.1em;">$ <%= price %></p>
                             </div>
             <%

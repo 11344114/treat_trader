@@ -29,6 +29,17 @@
     <style>
         .hero-slider:hover { transform: scale(1.01); }
 
+        /* Marquee style: 無縫水平跑馬燈，滑鼠懸停暫停 */
+        .marquee-wrap { overflow: hidden; background: linear-gradient(90deg,#FFECB3,#FFD2A6); border-radius:6px; margin: 12px 0; }
+        .marquee { display: flex; width: max-content; white-space: nowrap; align-items: center; }
+        .marquee .marquee-item { display: inline-block; padding: 10px 40px; font-weight: 600; color:#5C4033; }
+        .marquee.animate { animation: marqueeAnim 18s linear infinite; }
+        .marquee.animate:hover { animation-play-state: paused; }
+        @keyframes marqueeAnim {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
         @keyframes coolShow {
             from { 
                 opacity: 0; 
@@ -60,7 +71,26 @@
     </style>
 </head>
 <body>
-    <div class="marquee-container">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #fff;"><%= visitCounter %></strong> 人次 ✨</div>
+    <div class="marquee-wrap" aria-hidden="false">
+        <div id="marqueeTrack" class="marquee animate">
+            <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #5C4033;"><%= visitCounter %></strong> 人次 ✨</div>
+            <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #5C4033;"><%= visitCounter %></strong> 人次 ✨</div>
+        </div>
+    </div>
+    <script>
+        // 可依實際需調整速度：計算寬度後設置動畫時長，簡單版本保留固定時間
+        (function(){
+            try {
+                var track = document.getElementById('marqueeTrack');
+                if (!track) return;
+                // 若內容太短，複製一份以確保無縫效果
+                if (track.children.length === 1) {
+                    var clone = track.children[0].cloneNode(true);
+                    track.appendChild(clone);
+                }
+            } catch(e) { console.error(e); }
+        })();
+    </script>
     <header>
         <div class="logo" onclick="location.href='index.jsp'">
             <img src="assets/images/Logo.PNG" alt="Logo">

@@ -24,6 +24,7 @@ var searchKey = urlParams.get('keyword');
 
 function loadRatingsForProducts(products) {
     var tasks = products.map(function (p) {
+        // 取得外部 API 的評分，並合併本地 localStorage 裡的評論
         return fetch(API_BASE + "/Reviews/product/" + p.id + "?page=1&pageSize=9999")
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -32,26 +33,45 @@ function loadRatingsForProducts(products) {
 
                 items.forEach(function (r) {
                     var rating = Number(r.rating);
-                    if (!isNaN(rating) && rating > 0) {
-                        ratings.push(rating);
-                    }
+                    if (!isNaN(rating) && rating > 0) ratings.push(rating);
                 });
 
-                if (ratings.length === 0) {
-                    productRatings[p.id] = 0;
-                    return;
-                }
+                // 加上 localStorage 的暫存評論
+                try {
+                    var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
+                    (localAll||[]).forEach(function(lr){ if (String(lr.productId) === String(p.id) && lr.rating) ratings.push(Number(lr.rating)); });
+                } catch(e) {}
 
+                if (ratings.length === 0) { productRatings[p.id] = 0; return; }
                 var sum = ratings.reduce(function (acc, value) { return acc + value; }, 0);
                 productRatings[p.id] = parseFloat((sum / ratings.length).toFixed(1));
             })
             .catch(function () {
-                productRatings[p.id] = 0;
+                // 若 API 不可用，仍嘗試使用 localStorage 的評論來計算
+                try {
+                    var ratings = [];
+                    var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
+                    (localAll||[]).forEach(function(lr){ if (String(lr.productId) === String(p.id) && lr.rating) ratings.push(Number(lr.rating)); });
+                    if (ratings.length === 0) { productRatings[p.id] = 0; }
+                    else { var sum = ratings.reduce(function (a,b){return a+b;},0); productRatings[p.id] = parseFloat((sum/ratings.length).toFixed(1)); }
+                } catch(e) { productRatings[p.id] = 0; }
             });
     });
 
     return Promise.all(tasks);
 }
+
+// 當 localStorage 的本地評論更新時重新計算並重渲染
+window.addEventListener('storage', function(e){
+    if (e.key === 'tt_localReviews') {
+        if (allData && allData.length) {
+            loadRatingsForProducts(allData).then(function(){ renderList(allData); });
+        }
+    }
+});
+
+// 也監聽自訂事件（同頁面操作時觸發）
+window.addEventListener('localReviewsUpdated', function(){ if (allData && allData.length) { loadRatingsForProducts(allData).then(function(){ renderList(allData); }); } });
 
 function fetchData() {
     var sourcePromise;
@@ -75,6 +95,21 @@ function fetchData() {
         renderList(displayData);
 
         // 非同步載入評論資料，載入完成後更新星等顯示
+        // 先嘗試立刻使用 localStorage 的評論來更新初始渲染（避免等待外部 API）
+        try {
+            var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
+            if (localAll && localAll.length) {
+                data.forEach(function(p){
+                    var ratings = [];
+                    (localAll||[]).forEach(function(lr){ if (String(lr.productId) === String(p.id) && lr.rating) ratings.push(Number(lr.rating)); });
+                    if (ratings.length === 0) return;
+                    var sum = ratings.reduce(function (acc, value) { return acc + value; }, 0);
+                    productRatings[p.id] = parseFloat((sum / ratings.length).toFixed(1));
+                });
+                renderList(displayData);
+            }
+        } catch(e) {}
+
         loadRatingsForProducts(data).then(function () {
             renderList(displayData);
         });
@@ -124,7 +159,6 @@ function renderList(data) {
                 '<img class="img-placeholder" src="assets/images/' + p.img + '"></img>' +
                 '<h4>' + p.name + '</h4>' +
                 '<p style="color:#FF7F50; font-weight:bold;">$' + p.price + '</p>' +
-                '<div class="rating-stars">' + renderStars(rating) + '</div>' +
             '</div>';
     }).join("");
 }
