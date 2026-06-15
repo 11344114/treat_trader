@@ -20,7 +20,7 @@ window.onload = function() {
 };
 
 var urlParams = new URLSearchParams(window.location.search);
-var searchKey = urlParams.get('search');
+var searchKey = urlParams.get('keyword');
 
 function loadRatingsForProducts(products) {
     var tasks = products.map(function (p) {

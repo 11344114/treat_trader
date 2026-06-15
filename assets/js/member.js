@@ -4,12 +4,12 @@ window.onload = function() {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
     if (!user) {
         alert("請先登入！");
-        window.location.href = 'login.html';
+            window.location.href = 'login.jsp';
     } else {
         document.getElementById('mName').innerText = user.name;
         document.getElementById('mEmail').innerText = user.email;
         document.getElementById('mPhone').innerText = user.phone || "-";
-        document.getElementById('avatarLink').href = "member.html";
+        document.getElementById('avatarLink').href = "member.jsp";
 
         loadMyReviews(user.id);
         loadOrderProgress(user.id);
@@ -19,7 +19,7 @@ window.onload = function() {
 function logout() {
     localStorage.removeItem('tt_currentUser');
     alert("已登出");
-    window.location.href = 'login.html';
+        window.location.href = 'login.jsp';
 }
 
 function loadOrderProgress(userId) {
@@ -137,7 +137,7 @@ function siteSearch() {
         .then(function(data){
             var matches = data.filter(function(p){ return p.name.includes(val); });
             if(matches.length === 0) alert("沒有搜尋到相關商品！");
-            else location.href = "allgoods.html?search=" + encodeURIComponent(val);
+                else location.href = "allgoods.jsp?keyword=" + encodeURIComponent(val);
         });
 }
 function handleSearchInput(input) {
@@ -154,7 +154,7 @@ function handleSearchInput(input) {
             });
             if(matches.length > 0) {
                 box.innerHTML = matches.map(function(p){
-                    return '<div onclick="location.href=\'goods.html?id='+p.id+'\'">'+p.name+'</div>';
+                        return '<div onclick="location.href=\'goods.jsp?id='+p.id+'\'">'+p.name+'</div>';
                 }).join('');
                 box.style.display = 'block';
             } else {

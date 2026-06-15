@@ -323,7 +323,7 @@ function submitReview() {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
     if (!user) {
         alert("請先登入會員再評論！");
-        location.href = "login.html";
+        location.href = "login.jsp";
         return;
     }
 
@@ -386,7 +386,7 @@ function siteSearch() {
     var data = window.serverProducts || [];
     var matches = data.filter(function (p) { return (p.name || '').includes(val); });
     if (matches.length === 0) alert("沒有搜尋到相關商品！");
-    else location.href = "allgoods.jsp?search=" + encodeURIComponent(val);
+    else location.href = "allgoods.jsp?keyword=" + encodeURIComponent(val);
 }
 
 function handleSearchInput(input) {

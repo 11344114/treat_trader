@@ -25,7 +25,7 @@ function siteSearch() {
     fetch('products.json').then(function(r){ return r.json() }).then(function(data){
         var matches = data.filter(function(p){ return p.name.includes(val); });
         if(matches.length === 0) alert("沒有搜尋到相關商品！");
-        else location.href = "allgoods.html?search=" + encodeURIComponent(val);
+        else location.href = "allgoods.jsp?keyword=" + encodeURIComponent(val);
     });
 }
 
@@ -36,7 +36,7 @@ function handleSearchInput(input) {
     fetch('products.json').then(function(r){ return r.json() }).then(function(data){
         var matches = data.filter(function(p){ return p.name.toLowerCase().includes(val); });
         if(matches.length > 0) {
-            box.innerHTML = matches.map(function(p){ return '<div onclick="location.href=\'goods.html?id='+p.id+'\'">'+p.name+'</div>'; }).join('');
+            box.innerHTML = matches.map(function(p){ return '<div onclick="location.href=\'goods.jsp?id='+p.id+'\'">'+p.name+'</div>'; }).join('');
             box.style.display = 'block';
         } else { box.style.display = 'none'; }
     });

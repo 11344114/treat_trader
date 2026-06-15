@@ -2,7 +2,7 @@
 
 window.onload = function () {
     var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if (user) document.getElementById('avatarLink').href = "member.html";
+    if (user) document.getElementById('avatarLink').href = "member.jsp";
 };
 
 function handleRegister(e) {
@@ -36,7 +36,7 @@ function handleRegister(e) {
     .then(function (user) {
         localStorage.setItem("tt_currentUser", JSON.stringify(user));
         alert("註冊成功！");
-        location.href = "member.html";
+        location.href = "member.jsp";
     })
     .catch(function (err) {
         alert(err.message || "註冊失敗");
@@ -69,7 +69,7 @@ function handleLogin(e) {
     .then(function (user) {
         localStorage.setItem("tt_currentUser", JSON.stringify(user));
         alert("登入成功！");
-        location.href = "member.html";
+        location.href = "member.jsp";
     })
     .catch(function (err) {
         alert(err.message || "登入失敗，請確認帳號密碼");

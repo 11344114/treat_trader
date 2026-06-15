@@ -5,7 +5,7 @@ function siteSearch() {
     fetch('products.json').then(function(r){ return r.json() }).then(function(data){
         var matches = data.filter(function(p){ return p.name.includes(val); });
         if(matches.length === 0) alert("沒有搜尋到相關商品！");
-        else location.href = "allgoods.html?search=" + encodeURIComponent(val);
+        else location.href = "allgoods.jsp?keyword=" + encodeURIComponent(val);
     });
 }
 
@@ -81,7 +81,7 @@ function renderProducts(list) {
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; background: white; border-radius: 15px;">
                 <i class="fa-solid fa-cookie-bite" style="font-size: 4rem; color: #FFD2A6; margin-bottom: 20px;"></i>
                 <h3 style="color: #5C4033;">喔喔！找不到相關商品</h3>
-                <button onclick="location.href='allgoods.html'" class="btn">查看所有商品</button>
+                <button onclick="location.href='allgoods.jsp'" class="btn">查看所有商品</button>
             </div>`;
         return;
     }
