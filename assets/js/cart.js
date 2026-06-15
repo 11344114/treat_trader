@@ -152,51 +152,51 @@ function updateCheckoutList(cart) {
 
 // 這裡我們把結帳改成直接提交表單，而不是 fetch
 function submitOrder() {
-    // 建立本地訂單記錄，存入 localStorage 的 tt_orders
+    alert("訂單已提交！系統會將訂單記錄在您的歷史消費紀錄中。");
+    // 建立本地訂單紀錄（localStorage: tt_orders / tt_latestOrder）
     try {
         var cart = getCart();
         if (!cart || cart.length === 0) {
-            alert('購物車為空，無法下單');
+            alert('購物車為空，無法建立訂單');
             return;
         }
-        var currentUser = null;
-        try { currentUser = JSON.parse(localStorage.getItem('tt_currentUser') || 'null'); } catch(e){ currentUser = null; }
-
-        var totalText = (document.getElementById('checkoutTotal') && document.getElementById('checkoutTotal').innerText) || '';
         var total = 0;
-        try { total = Number(totalText.replace(/[^0-9\.]/g, '')) || 0; } catch(e) { total = 0; }
+        cart.forEach(function(i){ total += (i.price * i.qty); });
+        var shipping = total > 2500 ? 0 : 60;
+        var grandTotal = total + shipping;
 
-        var shipMethod = (document.getElementById('shipMethodValue') && document.getElementById('shipMethodValue').value) || '';
-        var payMethod = (document.getElementById('payMethodValue') && document.getElementById('payMethodValue').value) || '';
-
+        var user = JSON.parse(localStorage.getItem('tt_currentUser') || 'null');
+        var orderId = 'L' + Date.now();
         var now = new Date();
-        var orderId = 'local_' + Date.now();
-        var order = {
+
+        var orderObj = {
             orderId: orderId,
-            userId: currentUser && currentUser.id ? currentUser.id : null,
-            userEmail: currentUser && currentUser.email ? currentUser.email : null,
-            userName: currentUser && currentUser.name ? currentUser.name : null,
+            userId: user && user.id ? user.id : null,
+            userEmail: user && user.email ? user.email : null,
+            orderDate: now.toISOString(),
             items: cart,
-            total: total,
-            shipping: shipMethod,
-            payment: payMethod,
-            status: '已建立',
-            orderDate: now.toISOString()
+            subtotal: total,
+            shipping: shipping,
+            total: grandTotal,
+            payment: (document.getElementById('payMethodValue') ? document.getElementById('payMethodValue').value : '未選'),
+            status: '處理中',
+            statusText: '處理中',
+            progressPercent: 10,
+            desc: '此訂單為本地儲存的測試訂單'
         };
 
-        var allOrders = [];
-        try { allOrders = JSON.parse(localStorage.getItem('tt_orders') || '[]'); } catch(e) { allOrders = []; }
-        allOrders.unshift(order);
-        localStorage.setItem('tt_orders', JSON.stringify(allOrders));
-        localStorage.setItem('tt_latestOrder', JSON.stringify(order));
+        var raw = localStorage.getItem('tt_orders');
+        var arr = [];
+        try { arr = JSON.parse(raw) || []; } catch(e){ arr = []; }
+        arr.push(orderObj);
+        localStorage.setItem('tt_orders', JSON.stringify(arr));
+        localStorage.setItem('tt_latestOrder', JSON.stringify(orderObj));
 
-        // 清空購物車並導向會員頁
-        saveCart([]);
-        window.location.href = 'member.jsp';
-    } catch (e) {
-        console.error('下單失敗', e);
-        alert('下單發生錯誤，請稍後再試');
-    }
+    } catch(e) { console.error('建立本地訂單失敗', e); }
+
+    // 清空購物車並導向會員中心
+    saveCart([]);
+    window.location.href = 'member.jsp';
 }
 
 function initMap() {

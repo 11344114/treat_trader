@@ -121,37 +121,31 @@
                     <script>
                         (function(){
                             try {
-                                // 讀取本地 localStorage 中的 tt_orders，並把屬於當前會員的插入表格
-                                var localOrders = JSON.parse(localStorage.getItem('tt_orders') || '[]');
-                                if (!localOrders || !localOrders.length) return;
+                                var tbl = document.getElementById('orderHistoryTable');
+                                if (!tbl) return;
+                                var raw = localStorage.getItem('tt_orders');
+                                if (!raw) return;
+                                var orders = [];
+                                try { orders = JSON.parse(raw) || []; } catch(e){ orders = []; }
+                                if (!orders || orders.length === 0) return;
+                                // 取得目前會員 email（由 server-side 變數傳入）
                                 var memberEmail = '<%= mEmail != null ? mEmail.replace("'","\\'") : "" %>';
-                                var table = document.getElementById('orderHistoryTable');
-                                if (!table) return;
-                                // 若有「尚無訂單紀錄」提示列，先移除（將由本地訂單填補）
-                                try {
-                                    var rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
-                                    rows.forEach(function(r){ if(r.innerText && r.innerText.indexOf('尚無訂單紀錄') !== -1) r.parentNode.removeChild(r); });
-                                } catch(e){}
-
-                                // 插入本地訂單在表格上方
-                                localOrders.forEach(function(o){
-                                    if (memberEmail && o.userEmail && o.userEmail !== memberEmail) return;
-                                    var d = new Date(o.orderDate || '');
-                                    var dateStr = isNaN(d.getTime()) ? (o.orderDate||'') : (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
-                                    var tr = document.createElement('tr');
-                                    tr.innerHTML = '<td>#' + o.orderId + '</td>' +
-                                                   '<td>' + dateStr + '</td>' +
-                                                   '<td>NT$' + (o.total || 0) + '</td>' +
-                                                   '<td>' + (o.status || '') + '</td>' +
-                                                   '<td>' + (o.payment || '') + '</td>';
-                                    // 把新訂單插在表格第一個資料列之後（保留 server-side header）
-                                    table.appendChild(tr);
+                                // 將本地訂單插入表格（放在最上方）
+                                orders.slice().reverse().forEach(function(o){
+                                    if (memberEmail && o.userEmail && o.userEmail !== memberEmail) return; // 只顯示屬於此會員的訂單
+                                    var row = tbl.insertRow(1); // 在標題下方插入
+                                    var d = new Date(o.orderDate || Date.now());
+                                    var dateStr = d.toISOString().substring(0,10);
+                                    var total = o.total || o.subtotal || 0;
+                                    row.innerHTML = '<td>#' + (o.orderId||'') + '</td>' +
+                                                    '<td>' + dateStr + '</td>' +
+                                                    '<td>NT$' + total + '</td>' +
+                                                    '<td>' + (o.statusText || o.status || '') + '</td>' +
+                                                    '<td>' + (o.payment || '') + '</td>';
                                 });
                             } catch(e) { console.error(e); }
                         })();
                     </script>
-                        %>
-                    </table>
                 </div>
 
                 <div class="card">
