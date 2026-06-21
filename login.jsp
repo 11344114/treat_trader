@@ -80,6 +80,18 @@
                     checkRs.close();
                     checkPstmt.close();
                 }
+                // ==================== 3. 管理者登入（開發用，硬編碼驗證） ====================
+                else if ("adminLogin".equals(action)) {
+                    String adminEmail = request.getParameter("adminEmail");
+                    String adminPwd = request.getParameter("adminPwd");
+                    if ("admin@treattrader.com".equals(adminEmail) && "admin123".equals(adminPwd)) {
+                        session.setAttribute("isAdmin", true);
+                        out.println("<script>window.location.href='admin.jsp';</script>");
+                        return;
+                    } else {
+                        message = "<script>alert('管理者帳號或密碼錯誤！');</script>";
+                    }
+                }
             } catch (Exception e) {
                 // 如果電話重複 (UQ) 觸發錯誤，也會在這裡顯示
                 message = "<script>alert('系統出錯：" + e.getMessage().replace("'", "\\'") + "');</script>";
@@ -106,6 +118,12 @@
             background: white; padding: 30px; border-radius: 10px;
             width: 90%; max-width: 400px; text-align: center;
         }
+        /* 鎖頭按鈕與 admin panel 樣式 */
+        .lock-btn { position: absolute; top: 12px; right: 12px; background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 8px; cursor: pointer; box-shadow: 0 8px 18px rgba(0,0,0,0.08); font-size: 14px; }
+        .lock-btn i { margin-right: 0; }
+        .lock-btn.unlocked { background: #FF7F50; }
+        .admin-locked { filter: grayscale(100%) opacity(0.6); pointer-events: none; }
+        .admin-panel { transition: filter 0.25s ease, opacity 0.25s ease; }
         @media (max-width: 1200px) {
             .container { grid-template-columns: 1fr 1fr !important; }
         }
@@ -167,23 +185,27 @@
             </form>
         </div>
 
-        <div class="card login-container" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border: 2px solid #667eea;">
-            <h2 style="color: #667eea;">🔐 管理者登入</h2>
-            <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Treat Trader 後台管理系統</p>
-            <form style="margin-top: 20px;" action="admin-login.jsp" method="POST">
-                <input type="hidden" name="action" value="adminLogin">
-                
-                <input type="email" id="adminEmail" name="adminEmail" placeholder="管理者信箱" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
-                <input type="password" id="adminPwd" name="adminPwd" placeholder="密碼" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
-                
-                <button type="submit" class="btn" style="width:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size:1.1rem;">進入後台</button>
-                
-                <div style="margin-top: 15px; padding: 10px; background: #f0f4ff; border-radius: 5px; font-size: 0.85rem; color: #555;">
-                    <strong style="color: #667eea;">測試帳號：</strong><br>
-                    信箱：admin@treattrader.com<br>
-                    密碼：admin123
-                </div>
-            </form>
+        <div class="card login-container" style="position:relative;">
+            <!-- 鎖頭按鈕：初始紅色，按下後變為橘色(解鎖) -->
+            <button id="adminLockBtn" class="lock-btn" aria-pressed="false" title="按下以解鎖並填寫管理者登入資訊"><i class="fa-solid fa-lock"></i></button>
+
+            <div id="adminPanel" class="admin-panel admin-locked">
+                <h2 style="color: #5C4033;">管理者登入</h2>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Treat Trader 管理系統</p>
+                <form style="margin-top: 20px;" action="login.jsp" method="POST">
+                    <input type="hidden" name="action" value="adminLogin">
+
+                    <input type="email" id="adminEmail" name="adminEmail" placeholder="管理者帳號 (Email)" required disabled style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+                    <input type="password" id="adminPwd" name="adminPwd" placeholder="密碼" required disabled style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+
+                    <button type="submit" id="adminSubmit" class="btn" disabled style="width:100%; font-size:1.1rem;">登入管理系統</button>
+
+                    <div style="margin-top: 15px; padding: 10px; background: #FFF8E7; border:1px solid #FFD2A6; border-radius: 5px; font-size: 0.85rem; color: #555;">
+                        Email：admin@treattrader.com<br>
+                        密碼：admin123
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -212,5 +234,32 @@
     </footer>
 
     <script src="assets/js/login.js?v=2"></script>
+    <script>
+        (function(){
+            try {
+                var lockBtn = document.getElementById('adminLockBtn');
+                var panel = document.getElementById('adminPanel');
+                if (!lockBtn || !panel) return;
+                var inputs = panel.querySelectorAll('input:not([type=hidden]), button[type=submit]');
+
+                // 初始狀態：disabled 已在 HTML 設定
+                lockBtn.addEventListener('click', function(e){
+                    e.preventDefault();
+                    var isUnlocked = lockBtn.classList.toggle('unlocked');
+                    if (isUnlocked) {
+                        panel.classList.remove('admin-locked');
+                        lockBtn.innerHTML = '<i class="fa-solid fa-lock-open"></i>';
+                        inputs.forEach(function(el){ el.disabled = false; });
+                        lockBtn.setAttribute('aria-pressed','true');
+                    } else {
+                        panel.classList.add('admin-locked');
+                        lockBtn.innerHTML = '<i class="fa-solid fa-lock"></i>';
+                        inputs.forEach(function(el){ el.disabled = true; });
+                        lockBtn.setAttribute('aria-pressed','false');
+                    }
+                });
+            } catch(e){ console.error(e); }
+        })();
+    </script>
 </body>
 </html>

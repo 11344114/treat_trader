@@ -108,7 +108,6 @@
                                     }
                                     
                                     if(!hasOrder) {
-                                        out.println("<tr><td colspan='5' style='text-align:center;'>尚無訂單紀錄，快去逛逛吧！</td></tr>");
                                     }
                                     rs.close();
                                     pstmt.close();
@@ -173,7 +172,7 @@
                                         String rDateStr = (rTime != null) ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(rTime) : "";
                         %>
                                         <div class="review-record">
-                                            <div class="review-prod-name">📦 商品：<%= pNameOfReview %></div>
+                                            <div class="review-prod-name"><%= pNameOfReview %></div>
                                             <div class="review-stars">
                                                 <% 
                                                     // 依據分數動態畫出實心星星
@@ -181,16 +180,14 @@
                                                         if(s <= score) { out.print("★"); } else { out.print("☆"); }
                                                     } 
                                                 %>
-                                                (<%= score %> 分)
                                             </div>
-                                            <div class="review-text">💬 <%= reviewContent == null || reviewContent.isEmpty() ? "（僅評分，未填寫評語）" : reviewContent %></div>
+                                            <div class="review-text"><%= reviewContent == null || reviewContent.isEmpty() ? "（僅評分，未填寫評語）" : reviewContent %></div>
                                             <div class="review-meta">發表日期：<%= rDateStr %></div>
                                         </div>
                         <%
                                     }
                                     
                                     if(!hasReview) {
-                                        out.println("<p style='color:#888; text-align:center; padding: 20px 0;'>您目前還沒有發表過任何商品評論喔！</p>");
                                     }
                                     rrs.close();
                                     rpstmt.close();
@@ -222,9 +219,9 @@
                                     var content = r.content || '（僅評分）';
                                     var date = r.date || '';
                                     return '<div class="review-record">' +
-                                           '<div class="review-prod-name">📦 商品：' + (r.productName||('商品#'+r.productId)) + '</div>' +
-                                           '<div class="review-stars">' + stars + ' (' + (r.rating||0) + ' 分)</div>' +
-                                           '<div class="review-text">💬 ' + (content) + '</div>' +
+                                           '<div class="review-prod-name">' + (r.productName||('商品#'+r.productId)) + '</div>' +
+                                           '<div class="review-stars">' + stars + '</div>' +
+                                           '<div class="review-text">' + (content) + '</div>' +
                                            '<div class="review-meta">發表日期：' + date + '</div>' +
                                            '</div>';
                                 }).join('');

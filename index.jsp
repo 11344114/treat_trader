@@ -29,11 +29,20 @@
     <style>
         .hero-slider:hover { transform: scale(1.01); }
 
-        /* Marquee style: 無縫水平跑馬燈，滑鼠懸停暫停 */
-        .marquee-wrap { overflow: hidden; background: linear-gradient(90deg,#FFECB3,#FFD2A6); border-radius:6px; margin: 12px 0; }
-        .marquee { display: flex; width: max-content; white-space: nowrap; align-items: center; }
-        .marquee .marquee-item { display: inline-block; padding: 10px 40px; font-weight: 600; color:#5C4033; }
+          /* Marquee style: 無縫水平跑馬燈，滑鼠懸停暫停
+              使用全域 .marquee-container（與 allgoods 同色與寬度），文字繼承色彩 */
+          /* 讓跑馬燈高度與 allgoods 的 .marquee-container 一致 */
+          .marquee { display: flex; width: max-content; white-space: nowrap; align-items: center; min-height: 30px; }
+          .marquee .marquee-item { display: inline-block; padding: 0 40px; font-weight: 600; color: inherit; line-height: 1.2; font-size:14px; }
+
+          /* 訪客訊息裝飾：卡片式強調，符合網頁風格 */
+          .visitor-banner { display: block; width: fit-content; margin: 0 auto; text-align: center; padding: 8px 14px; font-size: 0.95rem; color: #5C4033; font-weight: 700; background: #ffffff; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+          .visitor-banner .num { display: inline-block; background: #FF7F50; color: #fff; border-radius: 999px; padding: 4px 10px; margin: 0 8px; font-weight: 900; }
+
+          /* 內部 marquee 容器（不使用全域 .container 的垂直 margin） */
+          .marquee-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
         .marquee.animate { animation: marqueeAnim 18s linear infinite; }
+        .marquee.reverse.animate { animation-direction: reverse; }
         .marquee.animate:hover { animation-play-state: paused; }
         @keyframes marqueeAnim {
             0% { transform: translateX(0); }
@@ -71,23 +80,34 @@
     </style>
 </head>
 <body>
-    <div class="marquee-wrap" aria-hidden="false">
-        <div id="marqueeTrack" class="marquee animate">
-            <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #5C4033;"><%= visitCounter %></strong> 人次 ✨</div>
-            <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！當前總瀏覽人次：<strong style="color: #5C4033;"><%= visitCounter %></strong> 人次 ✨</div>
+    
+    <!-- 第二個跑馬燈：顯示當前總瀏覽人次，方向相反 -->
+    
+        <div class="marquee-container" aria-hidden="false" style="margin:0; border-radius:0; padding:4px 0; overflow:hidden;">
+            <div class="marquee-inner">
+                <div id="marqueeTrack" class="marquee animate" style="margin-bottom:0;">
+                    <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！ ✨</div>
+                    <div class="marquee-item">✨ Treat Trader 畢業回饋祭：各國零食滿 $2500 免運！ ✨</div>
+                </div>
+                <div id="marqueeTrack2" class="marquee reverse animate" style="margin-top:0;">
+                    <div class="marquee-item">✨ 當前總瀏覽人次：<strong><%= visitCounter %></strong> 人次 ✨</div>
+                    <div class="marquee-item">✨ 當前總瀏覽人次：<strong><%= visitCounter %></strong> 人次 ✨</div>
+                </div>
+            </div>
         </div>
-    </div>
+
     <script>
-        // 可依實際需調整速度：計算寬度後設置動畫時長，簡單版本保留固定時間
+        // 處理所有 marquee track（若內容太短則複製以確保無縫）
         (function(){
             try {
-                var track = document.getElementById('marqueeTrack');
-                if (!track) return;
-                // 若內容太短，複製一份以確保無縫效果
-                if (track.children.length === 1) {
-                    var clone = track.children[0].cloneNode(true);
-                    track.appendChild(clone);
-                }
+                var tracks = document.querySelectorAll('.marquee');
+                tracks.forEach(function(track){
+                    if (!track) return;
+                    if (track.children.length === 1) {
+                        var clone = track.children[0].cloneNode(true);
+                        track.appendChild(clone);
+                    }
+                });
             } catch(e) { console.error(e); }
         })();
     </script>
@@ -182,11 +202,12 @@
 
     <div class="scroll-top" onclick="window.scrollTo(0,0)">TOP</div>
 
-    <footer>
-        <p style="margin-bottom: 15px; font-size: 0.95rem; color: #666;"> 
-        歡迎光臨～您是本站第 <strong style="color: #FF7F50;"><%= visitCounter %></strong> 位客人！ 
-        </p>
+    <!-- 單獨顯示訪客計數（位於 footer 上方） -->
+    <div class="visitor-banner">
+        歡迎光臨～您是本站第 <span class="num"><%= visitCounter %></span> 位客人！
+    </div>
 
+    <footer>
         <div class="footer-socials">
             <a href="https://reurl.cc/xKA8ae" target="_blank"><i class="fa-brands fa-instagram"></i></a>
             <a href="https://reurl.cc/Vmlo9A" target="_blank"><i class="fa-brands fa-threads"></i></a>

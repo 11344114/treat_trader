@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 filepath = r"c:\Program Files\Apache Software Foundation\Tomcat 10.1\webapps\ROOT\treat_trader\goods.jsp"
 with open(filepath, "r", encoding="utf-8") as f:
     content = f.read()

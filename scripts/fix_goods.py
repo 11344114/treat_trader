@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 filepath = r"c:\Program Files\Apache Software Foundation\Tomcat 10.1\webapps\ROOT\treat_trader\goods.jsp"
 with open(filepath, "r", encoding="utf-8") as f:
     content = f.read()
@@ -29,13 +29,13 @@ new = """<%
                 if (rows > 0) {
                     out.print("{\\"success\\": true}");
                 } else {
-                    out.print("{\\"success\\": false, \\"message\\": \\"庫存不足或商品不存在\\"}");
+                    out.print("{\\"success\\": false, \\\"message\\\": \\\"庫存不足或商品不存在\\"}");
                 }
             } else {
-                out.print("{\\"success\\": false, \\"message\\": \\"資料庫連線失敗\\"}");
+                out.print("{\\"success\\": false, \\\"message\\\": \\\"資料庫連線失敗\\"}");
             }
         } catch (Exception e) {
-            out.print("{\\"success\\": false, \\"message\\": \\"例外錯誤\\"}");
+            out.print("{\\"success\\": false, \\\"message\\\": \\\"例外錯誤\\"}");
         }
         return; // AJAX 請求結束，不渲染後續 HTML
     }
