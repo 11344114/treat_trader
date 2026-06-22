@@ -80,11 +80,8 @@ function showForgetModal() { document.getElementById('forgetModal').style.displa
 function closeForgetModal() { document.getElementById('forgetModal').style.display = 'none'; }
 
 function confirmForget() {
-    var email = document.getElementById('forgetEmail').value;
-    var phone = document.getElementById('forgetPhone').value;
-    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !phone) { alert("請填寫所有欄位！"); return; }
-    if (!emailPattern.test(email)) { alert("請輸入有效的 Email 格式！"); return; }
-    alert("這是 demo 網站，請聯絡客服重設密碼 : )");
+    // 取消對 Email 與電話的前端驗證，允許直接送出（後端或客服處理）
+    // 保留欄位以便使用者填寫，但不阻擋送出
+    alert("重設密碼申請已送出。");
     closeForgetModal();
 }

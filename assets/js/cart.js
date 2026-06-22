@@ -1,12 +1,43 @@
 var map;
 
-// 1. 簡化版的購物車存取 (不再依賴前端的 tt_currentUser)
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// 支援 user-specific 與 fallback 的 cart key
+function getCartKey() {
+    try {
+        var user = JSON.parse(localStorage.getItem('tt_currentUser'));
+        return user && user.id ? 'tt_cart_user_' + user.id : 'tt_cart';
+    } catch (e) {
+        return 'tt_cart';
+    }
+}
+
 function getCart() {
-    return JSON.parse(localStorage.getItem('tt_cart') || '[]');
+    var key = getCartKey();
+    var cart = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!cart.length) {
+        // fallback to legacy key
+        try {
+            var fb = JSON.parse(localStorage.getItem('tt_cart') || '[]');
+            if (fb.length) {
+                cart = fb;
+                localStorage.setItem(key, JSON.stringify(cart));
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return cart;
 }
 
 function saveCart(cart) {
-    localStorage.setItem('tt_cart', JSON.stringify(cart));
+    var key = getCartKey();
+    localStorage.setItem(key, JSON.stringify(cart));
 }
 
 window.onload = function() {
@@ -73,15 +104,19 @@ function renderCart() {
     document.getElementById('toCheckoutBtn').style.display = 'block';
     var html = "";
     cart.forEach(function(item, index) {
-        var subtotal = item.price * item.qty;
+        // 容錯：接受不同屬性名稱並確保數值
+        var name = item.name || item.pName || item.title || '未知商品';
+        var price = Number(item.price || item.pPrice || item.unitPrice || 0) || 0;
+        var qty = Number(item.qty) || 1;
+        var subtotal = price * qty;
         total += subtotal;
         html += '<div class="cart-item">' +
                 '<div class="delete-btn" onclick="removeItem('+index+')">×</div>' +
                 '<div class="item-details">' +
-                    '<h4 class="p-name">'+item.name+'</h4>' +
+                    '<h4 class="p-name">'+escapeHtml(name)+'</h4>' +
                     '<div class="qty-control">' +
                         '<button onclick="updateQty('+index+', -1)">-</button>' +
-                        '<span class="qty-val">'+item.qty+'</span>' +
+                        '<span class="qty-val">'+qty+'</span>' +
                         '<button onclick="updateQty('+index+', 1)">+</button>' +
                     '</div>' +
                 '</div>' +
@@ -136,13 +171,17 @@ function updateCheckoutList(cart) {
     var list = document.getElementById('checkoutItemsList');
     var total = 0;
     list.innerHTML = '';
+}
     cart.forEach(function(item){
-        var sub = item.price * item.qty;
+        var name = item.name || item.pName || item.title || '未知商品';
+        var price = Number(item.price || item.pPrice || item.unitPrice || 0) || 0;
+        var qty = Number(item.qty) || 1;
+        var sub = price * qty;
         total += sub;
         var row = document.createElement('div');
         row.style.display = 'flex';
         row.style.justifyContent = 'space-between';
-        row.innerHTML = '<span>' + item.name + ' (x' + item.qty + ')</span><span>$' + sub + '</span>';
+        row.innerHTML = '<span>' + escapeHtml(name) + ' (x' + qty + ')</span><span>$' + sub + '</span>';
         list.appendChild(row);
     });
     var shipping = total > 2500 ? 0 : 60;
@@ -150,9 +189,49 @@ function updateCheckoutList(cart) {
     document.getElementById('checkoutTotal').innerText = '$' + (total + shipping);
 }
 
-// 這裡我們把結帳改成直接提交表單，而不是 fetch
+// 這裡我們把結帳改成直接提交表單，而不是 fetch，並在提交前驗證必填欄位
 function submitOrder() {
-    alert("訂單已提交！系統會將訂單記錄在您的歷史消費紀錄中。");
+    // 驗證結帳欄位
+    var recvName = (document.getElementById('recvName') || {}).value || '';
+    var recvPhone = (document.getElementById('recvPhone') || {}).value || '';
+    var recvEmail = (document.getElementById('recvEmail') || {}).value || '';
+    var payMethod = (document.getElementById('payMethodValue') || {}).value || '';
+    var payInput = (document.getElementById('payInputField') || {}).value || '';
+    var shipMethod = (document.getElementById('shipMethodValue') || {}).value || '';
+    var shipAddr = (document.getElementById('shipAddressField') || {}).value || '';
+    var storeName = (document.getElementById('storeNameInput') || {}).value || '';
+    var invInput = (document.getElementById('invInput') || {}).value || '';
+
+    if (!recvName.trim() || !recvPhone.trim() || !recvEmail.trim()) {
+        alert('請完整填寫收件資訊（姓名/電話/Email）');
+        return;
+    }
+    if (!payMethod) {
+        alert('請選擇付款方式');
+        return;
+    }
+    if (payMethod !== 'epay' && !payInput.trim()) {
+        alert('請輸入付款相關資訊（信用卡號或轉帳後五碼）');
+        return;
+    }
+    if (!shipMethod) {
+        alert('請選擇收貨方式');
+        return;
+    }
+    if (shipMethod === 'delivery' && !shipAddr.trim()) {
+        alert('請輸入宅配地址');
+        return;
+    }
+    if (shipMethod === 'store' && !storeName.trim()) {
+        alert('請選擇或輸入取貨門市');
+        return;
+    }
+    if (!invInput.trim()) {
+        alert('請輸入發票資料（載具/統編/捐贈碼）');
+        return;
+    }
+
+    alert("訂單已提交！系統會將訂單記錄在您的歷史訂單紀錄中。");
     // 建立本地訂單紀錄（localStorage: tt_orders / tt_latestOrder）
     try {
         var cart = getCart();
@@ -161,7 +240,7 @@ function submitOrder() {
             return;
         }
         var total = 0;
-        cart.forEach(function(i){ total += (i.price * i.qty); });
+        cart.forEach(function(i){ total += (Number(i.price || i.pPrice || i.unitPrice || 0) * (Number(i.qty) || 1)); });
         var shipping = total > 2500 ? 0 : 60;
         var grandTotal = total + shipping;
 
@@ -178,7 +257,7 @@ function submitOrder() {
             subtotal: total,
             shipping: shipping,
             total: grandTotal,
-            payment: (document.getElementById('payMethodValue') ? document.getElementById('payMethodValue').value : '未選'),
+            payment: payMethod,
             status: '處理中',
             statusText: '處理中',
             progressPercent: 10,

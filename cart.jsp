@@ -328,7 +328,7 @@
                 <input type="hidden" id="payMethodValue" value="card">
 
                 <div id="payInput" class="dynamic-field show">
-                    <input type="text" placeholder="請輸入信用卡號或轉帳後五碼">
+                    <input type="text" id="payInputField" placeholder="請輸入信用卡號或轉帳後五碼">
                 </div>
                 <div id="payQR" class="dynamic-field" style="text-align:center;">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://itouch.cycu.edu.tw/active_project/cycu1500h_01/donate/" alt="Scan to Pay">
@@ -348,7 +348,7 @@
                 <input type="hidden" id="shipMethodValue" value="delivery">
 
                 <div id="shipAddress" class="dynamic-field show">
-                    <input type="text" placeholder="請輸入宅配地址">
+                    <input type="text" id="shipAddressField" placeholder="請輸入宅配地址">
                 </div>
                 <div id="shipMap" class="dynamic-field">
                     <div id="googleMap"></div>
@@ -371,7 +371,7 @@
                     <button class="select-btn" onclick="selectOption('invGroup', this, 'company')">統編</button>
                     <button class="select-btn" onclick="selectOption('invGroup', this, 'donate')">捐贈</button>
                 </div>
-                <input type="text" placeholder="請輸入載具 / 統編 / 捐贈碼">
+                <input type="text" id="invInput" placeholder="請輸入載具 / 統編 / 捐贈碼">
             </div>
 
             <div class="form-section">

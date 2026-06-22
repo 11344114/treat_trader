@@ -284,7 +284,7 @@
                 <% if (pInventory > 0) { %>
                     <p style="color: #666; font-size: 1rem; margin-bottom: 15px;">剩餘庫存：<strong style="color: #27ae60;"><%= pInventory %></strong> 件</p>
                 <% } else { %>
-                    <p style="color: #95a5a6; font-size: 1rem; margin-bottom: 15px; font-weight: bold;">⚠️ 狀態：已售鑿（補貨中）</p>
+                    <p style="color: #95a5a6; font-size: 1rem; margin-bottom: 15px; font-weight: bold;">已售鑿，補貨中</p>
                 <% } %>
                 
                 <div id="pRatingDisplay" style="color: #e2b007; font-size: 1.2rem; margin-bottom: 20px;">暫無評分</div>
@@ -460,6 +460,7 @@
                         String rcontent = rrs.getString("content"); if (rcontent==null) rcontent = "";
                         java.sql.Timestamp rtime = rrs.getTimestamp("reviewedAt");
                         String rdate = (rtime!=null)? new java.text.SimpleDateFormat("yyyy/MM/dd").format(rtime) : "";
+                        long rts = (rtime!=null)? rtime.getTime() : 0L;
                         String uname = rrs.getString("userName"); if (uname==null) uname = "匿名";
                         String escContent = rcontent.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
                         String escName = uname.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
@@ -469,6 +470,7 @@
                            .append("\"userName\":\"").append(escName).append("\",")
                            .append("\"rating\":").append(rrating).append(',')
                            .append("\"date\":\"").append(rdate).append("\",")
+                           .append("\"ts\":").append(rts).append(',')
                            .append("\"content\":\"").append(escContent).append("\"")
                            .append('}');
                     }
@@ -483,7 +485,7 @@
         var serverReviews = <%= reviewsJson %>;
     </script>
 
-    <script src="assets/js/goods.js"></script>
+    <script src="assets/js/goods.js?v=2"></script>
 
 </body>
 </html>

@@ -18,22 +18,7 @@ window.onload = function () {
         if (addBtn) { addBtn.disabled = false; addBtn.title = ''; addBtn.style.opacity = '1'; }
         if (buyBtn) { buyBtn.disabled = false; buyBtn.title = ''; buyBtn.style.opacity = '1'; }
     } else {
-        var reviewInput = document.getElementById('userReview');
-        var submitBtn = document.getElementById('submitReviewBtn');
-        if (reviewInput) {
-            reviewInput.disabled = true;
-            reviewInput.placeholder = "請先登入會員以撰寫評論";
-        }
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerText = "請先登入";
-        }
-        var starCont = document.getElementById('starContainer');
-        if (starCont) {
-            starCont.style.pointerEvents = 'none';
-            starCont.style.opacity = '0.5';
-        }
-        // 不把按鈕設定為 disabled（以便點擊能觸發提示），改為綁定點擊事件提示後導向 login.jsp
+        // 允許未登入使用者撰寫評論（匿名投稿）。但加入購物車或立即購買仍需登入。
         if (addBtn) {
             addBtn.title = '請先登入';
             addBtn.style.opacity = '0.8';
@@ -46,6 +31,27 @@ window.onload = function () {
         }
     }
     setRating(5);
+
+    // 確保評論區欄位可用（強制啟用，以防舊版腳本或快取導致被停用）
+    try {
+        var reviewInput = document.getElementById('userReview');
+        var submitBtn = document.getElementById('submitReviewBtn');
+        var starCont = document.getElementById('starContainer');
+        if (reviewInput) {
+            reviewInput.disabled = false;
+            reviewInput.placeholder = '寫下您對這個商品的看法...';
+            reviewInput.style.opacity = '1';
+        }
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = '送出評論';
+            submitBtn.style.opacity = '1';
+        }
+        if (starCont) {
+            starCont.style.pointerEvents = 'auto';
+            starCont.style.opacity = '1';
+        }
+    } catch (e) { console.warn(e); }
 
     // 使用伺服器在頁面中嵌入的資料，取代 products.json
     var data = window.serverProducts || [];
@@ -225,10 +231,30 @@ function loadReviews() {
             return;
         }
 
+        // 以 timestamp 比較，容錯各種日期格式（包含 YYYY/MM/DD）
+        function parseTime(x) {
+            // 優先使用 ts 欄位（若存在），否則解析 date/reviewedAt
+            if (!x) return 0;
+            if (x.ts) return Number(x.ts) || 0;
+            var s = x.date || x.reviewedAt || '';
+            if (!s) return 0;
+            var t = Date.parse(s);
+            if (!isNaN(t)) return t;
+            t = Date.parse(s.replace(/\//g, '-'));
+            if (!isNaN(t)) return t;
+            var m = s.match(/(\d{4})[\-/](\d{1,2})[\-/](\d{1,2})/);
+            if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+            return 0;
+        }
         reviews.sort(function (a, b) {
-            var da = new Date(a.date || a.reviewedAt || '');
-            var db = new Date(b.date || b.reviewedAt || '');
-            return db - da;
+            var ta = parseTime(a), tb = parseTime(b);
+            if (tb !== ta) return tb - ta;
+            // 保持最近提交（local）在前：以 reviewId 含 local_ 判斷
+            var aLocal = String(a.reviewId || '').indexOf('local_') === 0;
+            var bLocal = String(b.reviewId || '').indexOf('local_') === 0;
+            if (aLocal && !bLocal) return -1;
+            if (bLocal && !aLocal) return 1;
+            return 0;
         });
 
         var totalPages = Math.ceil(reviews.length / reviewsPerPage);
@@ -304,12 +330,7 @@ function changePage(page) {
 }
 
 function submitReview() {
-    var user = JSON.parse(localStorage.getItem('tt_currentUser'));
-    if (!user) {
-        alert("請先登入會員再評論！");
-        location.href = "login.jsp";
-        return;
-    }
+    var user = JSON.parse(localStorage.getItem('tt_currentUser')) || null;
 
     var contentInput = document.getElementById('userReview');
     if (!contentInput) return;
@@ -332,10 +353,11 @@ function submitReview() {
             reviewId: 'local_' + Date.now(),
             productId: pid,
             productName: (currentProduct && currentProduct.name) || (window.serverCurrentProduct && window.serverCurrentProduct.name) || null,
-            userId: user.id || null,
-            userName: user.name || (user.email || '匿名'),
+            userId: user && user.id ? user.id : null,
+            userName: (user && (user.name || user.email)) ? (user.name || user.email) : '匿名',
             rating: currentRating,
             date: dateStr,
+            ts: Date.now(),
             content: content
         };
         localAll.push(reviewObj);

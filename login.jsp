@@ -233,7 +233,7 @@
         <p class="copyright">© COPYRIGHT 807dorm</p>
     </footer>
 
-    <script src="assets/js/login.js?v=2"></script>
+    <script src="assets/js/login.js?v=3"></script>
     <script>
         (function(){
             try {

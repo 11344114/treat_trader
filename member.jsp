@@ -39,7 +39,7 @@
     </style>
 </head>
 <body>
-    <div class="marquee-container">✨ 歡迎！查看您的訂單進度與消費紀錄 ✨</div>
+    <div class="marquee-container">✨ 歡迎！查看您的訂單紀錄 ✨</div>
     <header>
         <div class="logo" onclick="location.href='index.jsp'">
             <img src="assets/images/Logo.PNG" alt="Logo">
@@ -76,9 +76,9 @@
             <div class="member-fonts" style="display: flex; flex-direction: column; gap: 20px;">
 
                 <div class="card">
-                    <h2 class="member-section-title">歷史消費紀錄</h2>
+                    <h2 class="member-section-title">歷史訂單紀錄</h2>
                     <table id="orderHistoryTable">
-                        <tr><th>訂單編號</th><th>日期</th><th>金額</th><th>狀態</th><th>付款方式</th></tr>
+                        <tr><th>訂單編號</th><th>時間</th><th>金額</th><th>狀態</th><th>付款方式</th></tr>
                         <%
                             // 🟢 自動去 orders 表格撈取這個人的訂單！
                             if (conn != null) {
@@ -103,7 +103,15 @@
                                         out.println("<td>" + dateStr + "</td>");
                                         out.println("<td>NT$" + rs.getInt("total") + "</td>");
                                         out.println("<td>" + rs.getString("status") + "</td>");
-                                        out.println("<td>" + rs.getString("payment") + "</td>");
+                                        String payment = rs.getString("payment");
+                                        String payText = "";
+                                        if (payment == null) payText = "";
+                                        else if ("card".equalsIgnoreCase(payment)) payText = "信用卡";
+                                        else if ("transfer".equalsIgnoreCase(payment)) payText = "轉帳";
+                                        else if ("epay".equalsIgnoreCase(payment)) payText = "電子支付";
+                                        else if ("cash".equalsIgnoreCase(payment)) payText = "貨到付款";
+                                        else payText = payment;
+                                        out.println("<td>" + payText + "</td>");
                                         out.println("</tr>");
                                     }
                                     
@@ -136,11 +144,20 @@
                                     var d = new Date(o.orderDate || Date.now());
                                     var dateStr = d.toISOString().substring(0,10);
                                     var total = o.total || o.subtotal || 0;
+                                    var paymentLabel = (function(p){
+                                        if(!p) return '';
+                                        p = String(p).toLowerCase();
+                                        if(p === 'card') return '信用卡';
+                                        if(p === 'transfer') return '轉帳';
+                                        if(p === 'epay') return '電子支付';
+                                        if(p === 'cash') return '貨到付款';
+                                        return p;
+                                    })(o.payment);
                                     row.innerHTML = '<td>#' + (o.orderId||'') + '</td>' +
                                                     '<td>' + dateStr + '</td>' +
                                                     '<td>NT$' + total + '</td>' +
                                                     '<td>' + (o.statusText || o.status || '') + '</td>' +
-                                                    '<td>' + (o.payment || '') + '</td>';
+                                                    '<td>' + paymentLabel + '</td>';
                                 });
                             } catch(e) { console.error(e); }
                         })();
@@ -201,31 +218,76 @@
                     <script>
                         (function(){
                             try {
-                                var memberName = '<%= mName != null ? mName.replace("'","\\'") : "" %>';
                                 var myReviewsEl = document.getElementById('myReviews');
                                 if (!myReviewsEl) return;
                                 var localAll = JSON.parse(localStorage.getItem('tt_localReviews') || '[]');
                                 var currentUser = null;
                                 try { currentUser = JSON.parse(localStorage.getItem('tt_currentUser') || 'null'); } catch(e){ currentUser = null; }
+                                var memberEmail = '<%= mEmail != null ? mEmail.replace("'","\\'") : "" %>';
+                                var memberName = '<%= mName != null ? mName.replace("'","\\'") : "" %>';
+
+                                // 篩選出屬於此會員的本地評論：優先比對 userId，再比對 userEmail 或 userName
+                                var getCur = function() {
+                                    var out = { id:null, email:null, name:null };
+                                    if (currentUser) {
+                                        out.id = currentUser.id || currentUser.userId || currentUser.userID || currentUser.uid || null;
+                                        out.email = currentUser.email || currentUser.userEmail || null;
+                                        out.name = currentUser.name || currentUser.userName || currentUser.username || null;
+                                    }
+                                    return out;
+                                };
+                                var cur = getCur();
+
                                 var filtered = (localAll||[]).filter(function(r){
-                                    if (currentUser && r.userId && currentUser.id && String(r.userId) === String(currentUser.id)) return true;
-                                    if (r.userName && r.userName === memberName) return true;
+                                    if (!r) return false;
+                                    // match by userId (multiple possible keys), userEmail, or userName (case-insensitive)
+                                    if (cur.id && r.userId && String(r.userId) === String(cur.id)) return true;
+                                    if (cur.email && r.userEmail && String(r.userEmail) === String(cur.email)) return true;
+                                    var rname = (r.userName || '').toLowerCase();
+                                    if (cur.name && rname === String(cur.name).toLowerCase()) return true;
+                                    if (memberName && rname === String(memberName).toLowerCase()) return true;
+                                    // last resort: if r.productId/userName exists and memberEmail matches r.userEmail
+                                    if (memberEmail && r.userEmail && String(r.userEmail) === memberEmail) return true;
                                     return false;
                                 });
-                                if (filtered.length === 0) return;
-                                // 插入本地評論（放在上方）
-                                var html = filtered.map(function(r){
+                                // 也顯示本機匿名評論（沒有 userId 或 userEmail 的評論）
+                                var anon = (localAll||[]).filter(function(r){
+                                    if (!r) return false;
+                                    var hasId = r.userId || r.userId === 0;
+                                    var hasEmail = !!r.userEmail;
+                                    // 視為匿名：沒有 userId 且沒有 userEmail，或 userName 為 '匿名'
+                                    return (!hasId && !hasEmail) || (String(r.userName||'').toLowerCase() === '匿名');
+                                });
+
+                                // 移除已被 filtered 包含的評論（以 reviewId 判斷），再合併
+                                var seen = {};
+                                filtered.forEach(function(x){ if(x && x.reviewId) seen[String(x.reviewId)] = true; });
+                                var anonToAdd = [];
+                                anon.forEach(function(a){ if (a && a.reviewId && !seen[String(a.reviewId)]) { anonToAdd.push(a); seen[String(a.reviewId)] = true; } });
+
+                                var combined = (filtered || []).concat(anonToAdd);
+                                if (!combined || combined.length === 0) return;
+
+                                // 依 ts（毫秒）排序，最新在前；若沒有 ts，就 fallback 到 date
+                                combined.sort(function(a,b){
+                                    var ta = a && a.ts ? Number(a.ts) : (a && a.date ? Date.parse(String(a.date).replace(/\//g,'-'))||0 : 0);
+                                    var tb = b && b.ts ? Number(b.ts) : (b && b.date ? Date.parse(String(b.date).replace(/\//g,'-'))||0 : 0);
+                                    return tb - ta;
+                                });
+
+                                var html = combined.map(function(r){
                                     var stars = ''; for(var i=1;i<=5;i++) stars += (i <= (r.rating||0)) ? '★' : '☆';
                                     var content = r.content || '（僅評分）';
-                                    var date = r.date || '';
-                                    return '<div class="review-record">' +
-                                           '<div class="review-prod-name">' + (r.productName||('商品#'+r.productId)) + '</div>' +
+                                    var date = r.date || (r.ts ? new Date(Number(r.ts)).toISOString().substring(0,10) : '');
+                                     return '<div class="review-record">' +
+                                         '<div class="review-prod-name">' + (r.productName||('商品#'+r.productId)) + '</div>' +
                                            '<div class="review-stars">' + stars + '</div>' +
                                            '<div class="review-text">' + (content) + '</div>' +
                                            '<div class="review-meta">發表日期：' + date + '</div>' +
                                            '</div>';
                                 }).join('');
-                                // 將本地評論插在現有內容之前
+
+                                // 將合併後（包含匿名）的本地評論插在現有伺服器紀錄之前
                                 myReviewsEl.innerHTML = html + myReviewsEl.innerHTML;
                             } catch(e) { console.error(e); }
                         })();
